@@ -418,11 +418,6 @@
               <FilePath>..\Src\LaserDrv.c</FilePath>
             </File>
             <File>
-              <FileName>lt89121.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\lt89121.c</FilePath>
-            </File>
-            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/main.c</FilePath>

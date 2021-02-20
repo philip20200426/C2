@@ -660,7 +660,7 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 		//checksum error
 		if(checksum != recevie_data->checksum)
 		{
-			if(checksum != 0xffff) //universual checksum
+			if(recevie_data->checksum != 0xffff) //universual checksum
 			{
 				recevie_data->data4 = checksum;
 				recevie_data->data5 = 100;

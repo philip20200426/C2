@@ -102,9 +102,6 @@ extern void A100_GetParameter(void);
 extern void A100_ReceiveUart1Data(void);
 extern HAL_StatusTypeDef A100_SetBootPinMode(void);
 extern void A100_Lcos_CheckRegError(uint8_t local);
-#ifdef CONFIG_LT89121
-extern uint8_t LT89121_Update_Fw(void);
-#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -200,10 +197,6 @@ int main(void)
 	A5931_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	
-#ifdef CONFIG_LT89121
-	LT89121_Update_Fw();
-#endif
-
   A100_SetRGBCurrent();
   A100_LcosInitSequence();
   A100_LcosSetPatternSize();
