@@ -64,10 +64,11 @@ uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr)
 	return (d[0] << 8) + d[1];
 }
 
-
+#define MAX_RGB_VAL   96
+#define MIN_RGB_VAL   10
 void A100_SetPwm(uint8_t DevAddr, uint8_t data)
 {
-	uint16_t reg_data = data << 4;
+	uint16_t reg_data = (MAX_RGB_VAL - data) << 4;
 
 	TPL1401_WriteI2C_Byte(DevAddr, 0xD1, 0x01E0);//0x11E5
 	HAL_Delay(1);
@@ -80,11 +81,15 @@ void A100_SetPwm(uint8_t DevAddr, uint8_t data)
 
 uint8_t A100_SetGreenCurrent(uint16_t GreenCurrent)
 {
-  if(GreenCurrent > 255)
+  if(GreenCurrent > MAX_RGB_VAL)
   {
-			GreenCurrent  = 255;
+			GreenCurrent  = MAX_RGB_VAL;
   }
-
+  if(GreenCurrent < MIN_RGB_VAL)
+  {
+			GreenCurrent  = MIN_RGB_VAL;
+  }
+	
 	g_GreenCurrent = GreenCurrent;
 	A100_SetPwm(TPL1401_GLED_I2C_ADDR, g_GreenCurrent);
   return 0;
@@ -92,11 +97,15 @@ uint8_t A100_SetGreenCurrent(uint16_t GreenCurrent)
 
 uint8_t A100_SetBlueCurrent(uint16_t BlueCurrent) 
 {
-  if(BlueCurrent > 255)
+  if(BlueCurrent > MAX_RGB_VAL)
   {
-			BlueCurrent = 255;
+			BlueCurrent = MAX_RGB_VAL;
   }
-
+  if(BlueCurrent < MIN_RGB_VAL)
+  {
+			BlueCurrent = MIN_RGB_VAL;
+  }
+	
 	g_BlueCurrent = BlueCurrent;
 	A100_SetPwm(TPL1401_BLED_I2C_ADDR, g_BlueCurrent);
   return 0;
@@ -106,11 +115,16 @@ uint8_t A100_SetBlueCurrent(uint16_t BlueCurrent)
 uint8_t A100_SetRedCurrent(uint16_t RedCurrent)
 {
 
-	if(RedCurrent > 255)
+	if(RedCurrent > MAX_RGB_VAL)
   {
-			RedCurrent  = 255;
+			RedCurrent  = MAX_RGB_VAL;
   }
-
+	
+	if(RedCurrent < MIN_RGB_VAL)
+  {
+			RedCurrent  = MIN_RGB_VAL;
+  }
+	
 	g_RedCurrent = RedCurrent;
 	A100_SetPwm(TPL1401_RLED_I2C_ADDR, g_RedCurrent);
 
@@ -139,10 +153,15 @@ void A100_SetRGBCurrent(void)
 	}
 	else
 	{
-		RedCurrent 	= 100;
-		GreenCurrent = 100;
-		BlueCurrent 	= 100;
+		RedCurrent 	= 50;
+		GreenCurrent = 50;
+		BlueCurrent 	= 50;
 	}
+
+	A100_SetRedCurrent(RedCurrent);
+  A100_SetGreenCurrent(GreenCurrent);
+  A100_SetBlueCurrent(BlueCurrent);
+	
 #if 0
 	{
 		uint16_t status = 0;
@@ -153,6 +172,8 @@ void A100_SetRGBCurrent(void)
 		printf("Get Red Led TPL1401 0xD1:0x%x\r\n", status);		
 		status = TPL1401_ReadI2C_Byte(TPL1401_RLED_I2C_ADDR, 0xD3);
 		printf("Get Red Led TPL1401 0xD3:0x%x\r\n", status);		
+		status = TPL1401_ReadI2C_Byte(TPL1401_RLED_I2C_ADDR, 0x21);
+		printf("Get Red Led TPL1401 0x21:0x%x\r\n", status);		
 		
 		status = TPL1401_ReadI2C_Byte(TPL1401_GLED_I2C_ADDR, 0xD0);
 		printf("Get Green Led TPL1401 Status:0x%x\r\n", status);	
@@ -160,17 +181,18 @@ void A100_SetRGBCurrent(void)
 		printf("Get Green Led TPL1401 0xD1:0x%x\r\n", status);		
 		status = TPL1401_ReadI2C_Byte(TPL1401_GLED_I2C_ADDR, 0xD3);
 		printf("Get Green Led TPL1401 0xD3:0x%x\r\n", status);	
+		status = TPL1401_ReadI2C_Byte(TPL1401_GLED_I2C_ADDR, 0x21);
+		printf("Get Green Led TPL1401 0x21:0x%x\r\n", status);	
 		
 		status = TPL1401_ReadI2C_Byte(TPL1401_BLED_I2C_ADDR, 0xD0);
 		printf("Get Blue Led TPL1401 Status:0x%x\r\n", status);
 		status = TPL1401_ReadI2C_Byte(TPL1401_BLED_I2C_ADDR, 0xD1);
 		printf("Get Blue Led TPL1401 0xD1:0x%x\r\n", status);	
 		status = TPL1401_ReadI2C_Byte(TPL1401_BLED_I2C_ADDR, 0xD3);
-		printf("Get Blue Led TPL1401 0xD3:0x%x\r\n", status);		
+		printf("Get Blue Led TPL1401 0xD3:0x%x\r\n", status);	
+		status = TPL1401_ReadI2C_Byte(TPL1401_BLED_I2C_ADDR, 0x21);
+		printf("Get Blue Led TPL1401 0x21:0x%x\r\n", status);		
 	}
-#endif
-
-	A100_SetRedCurrent(RedCurrent);
-  A100_SetGreenCurrent(GreenCurrent);
-  A100_SetBlueCurrent(BlueCurrent);
+#endif	
+	
 }

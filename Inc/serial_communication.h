@@ -82,6 +82,7 @@
 #define A100_GET_CURRENT     				111
 #define A100_GET_GAMA      					112
 #define A100_SET_GAMA      					113
+#define A100_SAVE_GAMA      				114
 
 #define A100_SET_TUNING_PARAMETER  	201
 #define A100_SET_WC_PARAMETER  			202
@@ -229,7 +230,7 @@ struct Projector_WC{
 struct Projector_Gama{
 		unsigned short  start_head ;
 		unsigned short  gamma_valid;
-		unsigned char   gamma_reg[88];
+		unsigned char   gamma_reg[88*3];
 };
 
 struct Projector_Csc{
@@ -325,6 +326,7 @@ extern uint8_t A100_SetRedCurrent(uint16_t RedCurrent);
 extern uint8_t A100_SetGreenCurrent(uint16_t RedCurrent);
 extern uint8_t A100_SetBlueCurrent(uint16_t RedCurrent);
 extern void A100_Dump_Cxd3554(uint16_t begin, uint16_t end);
+extern uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr);
 /* Exported variables --------------------------------------------------------*/
 
 #ifdef __cplusplus

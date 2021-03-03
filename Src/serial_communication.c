@@ -43,6 +43,7 @@ struct Projector_WC wc_data_temp[4];
 uint8_t g_red_value,g_green_value, g_blue_value;
 /*just for debug in bringup*/
 uint8_t a[20] = {0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55};
+uint8_t b[20] = {0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66};
 uint8_t c[20] = {0xee,0xee,0xee,0xee,0xee,0xee,0xee,0xee,0xee,0xee};
 
 const uint8_t g_kst[121][16] = {
@@ -205,6 +206,7 @@ unsigned char CharToHex(unsigned char bHex)
 unsigned char HexToChar(unsigned char bHex)
 {
 	unsigned char bHex_ret;
+	//if((bHex>=0x0)&&(bHex<=0x9))
 	if(bHex<=0x9)
 	{
 		bHex += 0x30;
@@ -390,6 +392,7 @@ void para_Analysis(char* buf,int para0_len,int para1_len)
 
 void show_A100_data(struct asu_date *data)
 {
+	//if(data->reg_value >=0x0 && data->reg_value <=0xf)
 	if(data->reg_value <=0xf)
 		data_len = 1;
 	if(data->reg_value >=0x10 && data->reg_value <=0xff)
@@ -585,7 +588,7 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 	{
 		recevie_cct_data = (struct Projector_CCT *)(pRx);
 		memcpy(&(g_projector_para.projector_tuning),recevie_cct_data,sizeof(struct Projector_CCT));
-		//A100_setparameter(&g_projector_para);
+		HAL_UART_Transmit(&huart1, b,  20, 100);
 		return;
 	}
 	else if(pRx[0] == A100_SET_WC_PARAMETER)
@@ -635,15 +638,15 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 			}
 			A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40,0x6d);
 			A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A42,0x30);
-			HAL_UART_Transmit(&huart1, c,  10, 100);
+			HAL_UART_Transmit(&huart1, c,  20, 100);
 			return;
 	}	
 	else if(pRx[0] == A100_SET_GAMA_PARAMETER)
 	{
 		recevie_gamma_data = (struct Projector_Gama *)(pRx);
 		memcpy(&(g_projector_para.gamma_data),recevie_gamma_data,sizeof(struct Projector_Gama));
-		//A100_setparameter(&g_projector_para);
 		HAL_UART_Transmit(&huart1, a,  20, 100);
+		return;
 	}
 	else if(pRx[0] == A100_UART_COMMAND_HEAD)
 	{
@@ -707,6 +710,7 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 								uint16_t Red_Current = 0x0000;
 								uint16_t Green_Current = 0x0000;
 								uint16_t Blue_Current = 0x0000;
+							
 								g_projector_para.projector_tuning.briness_index = recevie_data->data0;
 								Red_Current 	= g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].red_current ;
 								Green_Current = g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].green_current ;
@@ -741,6 +745,9 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 								A100_SetRedCurrent(Red_Current);
 								A100_SetGreenCurrent(Green_Current);
 								A100_SetBlueCurrent(Blue_Current);
+								for(i=0; i<88; i++) {//write gamma
+									A100_I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, g_projector_para.gamma_data.gamma_reg[recevie_data->data0 * 88 + i]);
+								}
 								recevie_data->data0 = g_projector_para.projector_tuning.cct_index;
 								recevie_data->data1 = g_projector_para.projector_tuning.briness_index;
 								recevie_data->data3 = Red_Current;
@@ -1062,7 +1069,10 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 									A100_SetRedCurrent(recevie_data->data1);
 									A100_SetGreenCurrent(recevie_data->data2);
 									A100_SetBlueCurrent(recevie_data->data3);
-																	
+								
+									recevie_data->data0 =  TPL1401_ReadI2C_Byte(0x90, 0x21) >> 4;//g_RedCurrent;
+									recevie_data->data1 =  TPL1401_ReadI2C_Byte(0x92, 0x21) >> 4;//g_GreenCurrent;
+									recevie_data->data2 =  TPL1401_ReadI2C_Byte(0x94, 0x21) >> 4;//g_BlueCurrent;																	
 									recevie_data->data5 = 109;
 								break;
 
@@ -1081,11 +1091,10 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 					break;
 
 					case A100_GET_CURRENT:
-							recevie_data->data0 =  g_RedCurrent;
-							recevie_data->data1 =  g_GreenCurrent;
-							recevie_data->data2 =  g_BlueCurrent;
+							recevie_data->data0 =  96 - (TPL1401_ReadI2C_Byte(0x90, 0x21) >> 4);//g_RedCurrent;
+							recevie_data->data1 =  96 - (TPL1401_ReadI2C_Byte(0x92, 0x21) >> 4);//g_GreenCurrent;
+							recevie_data->data2 =  96 - (TPL1401_ReadI2C_Byte(0x94, 0x21) >> 4);//g_BlueCurrent;
 							recevie_data->data3 = 115;
-							//A100_Lcos_CheckRegError(0);
 					break;
 
 					case A100_SET_DISPLAY_ON:
@@ -1292,6 +1301,18 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 						//A100_I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 7, reg_val);
 						break;
 					}
+					
+					case A100_SAVE_GAMA:
+					{
+						uint16_t cct_index = recevie_data->data0;
+						
+						g_projector_para.gamma_data.gamma_valid = 0xFDDF;
+						for(i=0; i<88; i++) {
+							A100_I2cReadSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, &g_projector_para.gamma_data.gamma_reg[cct_index*88 + i]);
+						}
+						break;
+					}
+					
 					case A100_READ_CXD:
 					{
 						uint8_t  reg_val;
@@ -1652,14 +1673,15 @@ void A100_LcosSetGain(void)
 
 void A100_LcosSetGamma(void)
 {
-	  int i;
+	  int i, cct_index;
 
 		printf("gamma_valid=0x%x\r\n",g_projector_para.gamma_data.gamma_valid);
 		if((g_projector_para.gamma_data.gamma_valid) == 0xFDDF)
 		{
+			cct_index = 0;//g_projector_para.projector_tuning.cct_index;
 			for(i=0; i<88; i++) {
-				A100_I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, g_projector_para.gamma_data.gamma_reg[i]);
-				printf("reg[%d]=0x%x\r\n",i+58, g_projector_para.gamma_data.gamma_reg[i]);
+				A100_I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, g_projector_para.gamma_data.gamma_reg[cct_index*88 + i]);
+				printf("reg[%d]=0x%x\r\n",i+58, g_projector_para.gamma_data.gamma_reg[cct_index*88 + i]);
 			}
 		}
 		
