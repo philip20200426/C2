@@ -153,9 +153,9 @@ void A100_SetRGBCurrent(void)
 	}
 	else
 	{
-		RedCurrent 	= 50;
-		GreenCurrent = 50;
-		BlueCurrent 	= 50;
+		RedCurrent 	= 96;
+		GreenCurrent = 70;
+		BlueCurrent 	= 70;
 	}
 
 	A100_SetRedCurrent(RedCurrent);

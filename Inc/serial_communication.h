@@ -23,6 +23,7 @@
 #define A100_I2C_WRITE        		  3
 #define A100_I2C_READ       	 	    4
 
+#define A100_GET_OE_FAN_SPEED 			7
 #define A100_SET_OE_FAN_SPEED 			8
 #define A100_SET_HAPTIC_START 		  9
 #define A100_SET_CURRENT_MODE  			16
@@ -138,8 +139,8 @@ typedef enum
   FAN_SPEED_FULL   = 40 - 1,
   FAN_SPEED_FAST   = 35,
   FAN_SPEED_MIDDLE = 30,
-  FAN_SPEED_DEFAULT= 25,
-  FAN_SPEED_SLOW   = 10,
+  FAN_SPEED_DEFAULT= 20,
+  FAN_SPEED_SLOW   = 15,
   FAN_PEED_STOP    = 0
 
 }FAN_Speed;
@@ -316,9 +317,10 @@ extern void A100_I2cWriteCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t I2cDat
 extern void A100_I2cReadCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t *I2cData);
 extern void A100_I2cWriteSxmb241(uint8_t I2cAddr,uint8_t I2cReg,uint8_t I2cData);
 extern void A100_I2cReadSxmb241(uint8_t I2cAddr, uint8_t I2cReg, uint8_t *I2cData);
-uint32_t adc_GetTsOut(void);
-uint32_t adc_GetPsOut(void);
-extern uint32_t adc_GetLDTemp(void);
+uint16_t adc_GetTsOut(void);
+uint16_t adc_GetPsOut(void);
+extern uint16_t adc_GetLDTemp(void);
+extern uint16_t adc_GetAdcVal(uint16_t *val);
 extern void A100_display_on(uint16_t on);
 extern uint8_t Motor_start(uint8_t dir, uint16_t steps);
 extern void A100_SetRGBCurrent(void);

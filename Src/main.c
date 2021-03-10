@@ -193,7 +193,7 @@ int main(void)
   A100_GpioConfig();	
   A100_SetFan12Speed(FAN_SPEED_DEFAULT);
   A100_SetFan34Speed(FAN_SPEED_DEFAULT);
-  A100_SetFan5Speed(FAN_SPEED_DEFAULT);
+  A100_SetFan5Speed(FAN_SPEED_MIDDLE);
 	A5931_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	
@@ -288,7 +288,7 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
 	uint8_t val;
 	
-	printf("HAL_GPIO_EXTI_Rising_Callback: 0x%x \r\n", GPIO_Pin);
+	//printf("HAL_GPIO_EXTI_Rising_Callback: 0x%x \r\n", GPIO_Pin);
 
 	if((GPIO_PIN_3 == GPIO_Pin)) /* Projector On  LIMIT_L interrupt */
 	{
@@ -313,7 +313,7 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 		val = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_5);
 		if(Flag_FanLock != val) {
 			Flag_FanLock = val;
-			printf("HAL_GPIO_EXTI_Callback: PC5 val:0x%x \r\n", Flag_FanLock);
+			//printf("HAL_GPIO_EXTI_Callback: PC5 val:0x%x \r\n", Flag_FanLock);
 		}
 	}		
 }
@@ -456,28 +456,198 @@ void SysTask1s(void)
   //HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
 }
 
+
+const uint16_t LD_RT_TABLE[] =
+{
+	3318,  //0 degree
+	3151,	 
+	2993,	
+	2844,	
+	2703,	
+	2570,	
+	2444,	
+	2325,	
+	2213,	
+	2107,	
+	2007,	
+	1912,	
+	1822,	
+	1736,	
+	1656,	
+	1579,	
+	1507,
+	1438,
+	1373,
+	1311,
+	1252,
+	1196,
+	1144,
+	1093,
+	1045,
+	1000,		//25
+	957, 
+	916, 
+	877, 
+	839, 
+	804, 
+	770, 
+	738, 
+	708, 
+	679, 
+	651, 
+	624, 
+	599, 
+	575, 
+	552, 
+	530, 
+	509, 
+	489, 
+	470, 
+	452, 
+	434, 
+	417, 
+	401, 
+	386, 
+	372, 
+	358, 
+	344, 
+	332, 
+	319, 
+	308, 
+	296  //55 degree
+};
+
+const uint16_t LCOS_RT_TABLE[] =
+{
+	31880,	//0 degree
+	30330,	
+	28870,	
+	27490,	
+	26180,	
+	24940,	
+	23760,	
+	22650,	
+	21590,	
+	20600,	
+	19650,	
+	18750,	
+	17890,	
+	17080,	
+	16320,	
+	15590,	
+	14890,	
+	14230,	
+	13610,	
+	13010,	
+	12450,	
+	11910,	
+	11390,	
+	10910,	
+	10440,	
+	10000,	//25
+	9579,	
+	9178,	
+	8795,	
+	8431,	
+	8083,	
+	7752,	
+	7436,	
+	7134,	
+	6846,	
+	6572,	
+	6309,	
+	6059,	
+	5819,	
+	5591,	
+	5372,	
+	5163,	
+	4963,	
+	4772,	
+	4590,	
+	4415,	
+	4247,	
+	4087,	
+	3934,	
+	3787,	
+	3646,	
+	3512,	
+	3383,	
+	3259,	
+	3140,	
+	3027,	//55 degree
+	2918,	
+	2813,	
+	2713,	
+	2616,	
+	2524
+};
+
+uint16_t GetLd_RT_Temp(uint16_t adc_val)
+{
+	uint16_t ohm, i;
+	
+	ohm = (4096000/adc_val - 1000);
+	if(ohm >  LD_RT_TABLE[0]) 
+	{
+		printf("LD OHM:%d \r\n",ohm);	
+
+		return 0;
+	}
+	
+	for (i = 0; i < sizeof(LD_RT_TABLE)/sizeof(uint16_t); i++)
+	{		
+		if(LD_RT_TABLE[i] < ohm ) break;
+	}
+	
+	return i;
+}
+
+uint16_t GetLcos_RT_Temp(uint16_t adc_val)
+{
+	uint16_t ohm, i;
+	
+	ohm = (40960000/adc_val - 10000);
+	if(ohm >  LCOS_RT_TABLE[0]) 
+	{
+		printf("LCOS OHM:%d \r\n",ohm);	
+
+		return 0;
+	}
+	
+	for (i = 0; i < sizeof(LCOS_RT_TABLE)/sizeof(uint16_t); i++)
+	{		
+		if(LCOS_RT_TABLE[i] < ohm ) break;
+	}
+	
+	return i;
+}
+
+
 void SysTask5s(void)
 {
-	uint32_t ld_temp = 0;
-	
-	ld_temp = adc_GetLDTemp();
-	printf("LD TEMP:%d \r\n",ld_temp);
 
+	uint16_t ld_adc = 0, lcos_adc = 0;
+	uint16_t adc_val[3];
+	uint16_t ld_temp, lcos_temp;
+	
+	ld_adc = adc_GetAdcVal(adc_val);
+	lcos_adc = adc_val[2];
+	ld_temp = GetLd_RT_Temp(ld_adc);
+	lcos_temp = GetLcos_RT_Temp(lcos_adc);
+	printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
 #if 0	
-	if(ld_temp > 2700)
-	{   if(ld_temp > 2800)
+	if(ld_temp > 45)
+	{  
+			if(Flag_Projector_On != 0)
 			{
-				if(Flag_Projector_On != 0)
-				{
-					Flag_Projector_On = 0;
-					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
-				}	
+				Flag_Projector_On = 0;
+				A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 			}	
 			A100_SetFan12Speed(FAN_SPEED_FULL);
 			A100_SetFan34Speed(FAN_SPEED_FULL);
 			A100_SetFan5Speed(FAN_SPEED_FULL);
 	}
-	else if(ld_temp < 2300)
+	else if(ld_temp < 25)
 	{
 			if(Flag_Projector_On != 1)
 			{
@@ -495,7 +665,7 @@ void SysTask5s(void)
 				Flag_Projector_On = 1;
 				A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 			}	
-			g_fan_value = FAN_SPEED_SLOW + (ld_temp-2300)*30;
+			g_fan_value = FAN_SPEED_SLOW + (ld_temp-25)*2;
 			A100_SetFan12Speed(g_fan_value);
 			A100_SetFan34Speed(g_fan_value);
 			A100_SetFan5Speed(g_fan_value);

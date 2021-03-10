@@ -21,8 +21,10 @@
 #include "serial_communication.h"
 
 /* Exported functions prototypes ---------------------------------------------*/
-
+extern uint16_t GetLd_RT_Temp(uint16_t adc_val);
+extern uint16_t GetLcos_RT_Temp(uint16_t adc_val);
 /* Private variables ---------------------------------------------------------*/
+uint16_t g_fan12_speed,g_fan34_speed,g_fan5_speed;
 struct Projector_parameter  g_projector_para;
 struct asu_date asu_rec_data;
 volatile uint8_t UartReceiveRxBuffer[UART_BUFFER_MAX_SIZE] = {0};
@@ -570,7 +572,7 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
   uint16_t i;
 	uint16_t  checksum;
 	uint16_t  MemAddSize;
-	uint32_t  value0;
+	uint16_t  value0;
 
 	struct Projector_date *recevie_data;
 	struct Projector_CCT  *recevie_cct_data;
@@ -695,13 +697,26 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 						}
 					break;
 			*/
+					case A100_GET_OE_FAN_SPEED:
+						recevie_data->data0 = g_fan12_speed;	
+						recevie_data->data1 = g_fan34_speed;
+						recevie_data->data2 = g_fan5_speed;					
+					break;
+						
 					case A100_SET_OE_FAN_SPEED:
-						if(recevie_data->data0 == 1)
+						if(recevie_data->data0 == 0)
+						{
 							A100_SetFan12Speed(recevie_data->data1);
-						else if(recevie_data->data0 == 2)
 							A100_SetFan34Speed(recevie_data->data1);
-						else if(recevie_data->data0 == 3)	
-							A100_SetFan5Speed(recevie_data->data1);							
+						}
+						else if(recevie_data->data0 == 1)	
+							A100_SetFan5Speed(recevie_data->data1);	
+						else	
+						{
+							A100_SetFan12Speed(recevie_data->data1);
+							A100_SetFan34Speed(recevie_data->data1);
+							A100_SetFan5Speed(recevie_data->data1);
+						}							
 					break;
 
 					case A100_SET_CURRENT_MODE:
@@ -1084,10 +1099,23 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 					break;
 
 					case A100_GET_ADC_TEMP:
-							value0 = adc_GetLDTemp();
-							recevie_data->data0 =  value0 >> 16;
-							recevie_data->data1 =  value0;
-							recevie_data->data2 = 114;
+					{
+							uint16_t ld_adc = 0, lcos_adc = 0;
+							uint16_t adc_val[3];
+							uint16_t ld_temp, lcos_temp;
+	
+							ld_adc = adc_GetAdcVal(adc_val);
+							lcos_adc = adc_val[2];
+							ld_temp = GetLd_RT_Temp(ld_adc);
+						  lcos_temp = GetLcos_RT_Temp(lcos_adc);
+						
+							recevie_data->data0 =  ld_adc;
+							recevie_data->data1 =  lcos_adc;
+							recevie_data->data2 =  ld_temp;
+							recevie_data->data3 =  lcos_temp;
+							recevie_data->data4 =  (lcos_adc*600)/4096;
+							recevie_data->data5 =  114;
+					}
 					break;
 
 					case A100_GET_CURRENT:
@@ -1140,16 +1168,14 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 					
 					case A100_GET_ADC_PS:
 							value0 = adc_GetPsOut();
-							recevie_data->data0 =  value0 >> 16;
-							recevie_data->data1 =  value0;
+							recevie_data->data0 =  value0;
 							recevie_data->data2 = 124;
 					break;		
 
 					case A100_GET_ADC_TS:
 							value0 = adc_GetTsOut();
-							recevie_data->data0 =  value0 >> 16;
-							recevie_data->data1 =  value0;
-							recevie_data->data2 = g_fan_value;
+							recevie_data->data0 =  value0;
+							recevie_data->data1 =  g_fan_value;
 					break;		
 
 					case A100_GET_TUNING_PARAMETER:
@@ -1383,7 +1409,8 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 					default:
 					break;
 				}
-				recevie_data->checksum = UartReceiveLength;
+				//recevie_data->checksum = UartReceiveLength;
+				recevie_data->checksum = (recevie_data->command + recevie_data->data0 + recevie_data->data1 + recevie_data->data2 + recevie_data->data3 + recevie_data->data4+ recevie_data->data5) % 0x1000;
 				HAL_UART_Transmit(&huart1, (uint8_t *)recevie_data,  sizeof(struct Projector_date), 100);
 		}
 	else
@@ -1763,6 +1790,7 @@ void A100_LcosSetWC(void)
 uint8_t A100_SetFan12Speed(uint32_t speed)
 {
   if(speed > FAN_SPEED_FULL)	speed = FAN_SPEED_FULL;
+	g_fan12_speed = (uint16_t)speed;
 	
   TIM_OC_InitTypeDef sConfigOC={0};
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
@@ -1778,7 +1806,8 @@ uint8_t A100_SetFan12Speed(uint32_t speed)
 uint8_t A100_SetFan34Speed(uint32_t speed)
 {
   if(speed > FAN_SPEED_FULL)	speed = FAN_SPEED_FULL;
-
+	g_fan34_speed = (uint16_t)speed;
+	
   TIM_OC_InitTypeDef sConfigOC={0};
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = speed;
@@ -1792,7 +1821,8 @@ uint8_t A100_SetFan34Speed(uint32_t speed)
 uint8_t A100_SetFan5Speed(uint32_t speed)
 {
   if(speed > FAN_SPEED_FULL)	speed = FAN_SPEED_FULL;
-
+	g_fan5_speed = (uint16_t)speed;
+	
   TIM_OC_InitTypeDef sConfigOC={0};
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = speed;
@@ -1827,12 +1857,12 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 }
 
-uint16_t get_ADC_DmaValue(uint16_t ch)
+uint16_t get_ADC_DmaValue(uint16_t ch, uint16_t* val)
 {
-	uint16_t aResultDMA[ADC_CONVERSION_NUM], ret, i;
+	uint16_t aResultDMA[ADC_CONVERSION_NUM], ret, i, j;
 	uint16_t count = 1000;
 	static uint8_t flag_cal = 1;
-	uint32_t val_sum = 0;
+	uint32_t val_sum[ADC_CHANNEL_CNT] = {0};
 	
 	memset(aResultDMA, 0, sizeof(aResultDMA));
 	
@@ -1866,25 +1896,44 @@ uint16_t get_ADC_DmaValue(uint16_t ch)
 	ubDmaTransferStatus = 0;
 	HAL_ADC_Stop(&hadc1);	
 	
-	for (i=0; i<ADC_CONVERSION_CNT; i++)
-		val_sum += aResultDMA[i * ADC_CHANNEL_CNT + ch];
+	for (j=0; j<ADC_CHANNEL_CNT; j++)	
+	{
+		for (i=0; i<ADC_CONVERSION_CNT; i++)
+		{
+			val_sum[j] += aResultDMA[i * ADC_CHANNEL_CNT + j];
+		}		
+	}
 
-	return (val_sum/ADC_CONVERSION_CNT);
+	if(val != NULL) 
+	{
+		for (j=0; j<ADC_CHANNEL_CNT;j++)
+		{
+			val[j] = val_sum[j]/ADC_CONVERSION_CNT;
+			printf("ADC_DMA_VAL[%d]=%d \r\n",j, val[j]);
+		}
+	}
+	
+	return (val_sum[ch]/ADC_CONVERSION_CNT);
 }
 
-uint32_t adc_GetTsOut(void)
+uint16_t adc_GetTsOut(void)
 {
-	return get_ADC_DmaValue(2);
+	return get_ADC_DmaValue(2, NULL);
 }
 
-uint32_t adc_GetPsOut(void)
+uint16_t adc_GetPsOut(void)
 {
-	return get_ADC_DmaValue(1);
+	return get_ADC_DmaValue(1, NULL);
 }
 
-uint32_t adc_GetLDTemp(void)
+uint16_t adc_GetLDTemp(void)
 {
-	return get_ADC_DmaValue(0);
+	return get_ADC_DmaValue(0, NULL);
+}
+
+uint16_t adc_GetAdcVal(uint16_t *val)
+{
+	return get_ADC_DmaValue(0, val);	
 }
 
 void A100_Variables_Init(void)
