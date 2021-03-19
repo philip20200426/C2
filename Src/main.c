@@ -84,8 +84,10 @@ volatile _Bool Flag_Sxrd241_Alarm = 0;
 volatile _Bool Flag_Projector_On = 0;
 volatile _Bool Flag_LIMIT_L = 0;
 volatile _Bool Flag_LIMIT_R = 0;
-volatile _Bool Flag_FanLock = 0;
+//volatile _Bool Flag_FanLock = 0;
 volatile _Bool Flag_LT9211_Int = 0;
+volatile _Bool Flag_FanTest = 0;
+
 
 uint32_t g_fan_value;
 uint8_t gpiopin = 0;
@@ -102,6 +104,7 @@ extern void A100_GetParameter(void);
 extern void A100_ReceiveUart1Data(void);
 extern HAL_StatusTypeDef A100_SetBootPinMode(void);
 extern void A100_Lcos_CheckRegError(uint8_t local);
+extern 	uint8_t A100_GetFanSpeed(void);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -185,15 +188,16 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM15_Init();
   MX_I2C2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 	printf("main() Projector_parameter size=%d \r\n",sizeof(struct Projector_parameter));
 
 	A100_Variables_Init();
   A100_GetParameter();
   A100_GpioConfig();	
-  A100_SetFan12Speed(FAN_SPEED_DEFAULT);
-  A100_SetFan34Speed(FAN_SPEED_DEFAULT);
-  A100_SetFan5Speed(FAN_SPEED_MIDDLE);
+	A100_SetFan12Speed(FAN_SPEED_DEFAULT);
+	A100_SetFan34Speed(FAN_SPEED_DEFAULT);
+  A100_SetFan5Speed(FAN_SPEED_SLOW);
 	A5931_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	
@@ -213,6 +217,14 @@ int main(void)
 	A100_LT89121_Reset();
 	A100_SetBootPinMode();
 	A100_ReceiveUart1Data();
+#if 1	
+  /*## Start the Input Capture in interrupt mode ##########################*/
+  if(HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }	
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -288,9 +300,9 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
 	uint8_t val;
 	
-	//printf("HAL_GPIO_EXTI_Rising_Callback: 0x%x \r\n", GPIO_Pin);
+	printf("HAL_GPIO_EXTI_Rising_Callback: 0x%x \r\n", GPIO_Pin);
 
-	if((GPIO_PIN_3 == GPIO_Pin)) /* Projector On  LIMIT_L interrupt */
+	if((GPIO_PIN_3 == GPIO_Pin)) /* LIMIT_L interrupt */
 	{
 		val  = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_3);
 		if(Flag_LIMIT_L != val) {
@@ -307,15 +319,7 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 			printf("HAL_GPIO_EXTI_Rising_Callback: PC4 val:0x%x \r\n", Flag_LIMIT_R);
 		}
 	}
-	
-	if((GPIO_PIN_5 == GPIO_Pin)) /*  FanLock interrupt */
-	{
-		val = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_5);
-		if(Flag_FanLock != val) {
-			Flag_FanLock = val;
-			//printf("HAL_GPIO_EXTI_Callback: PC5 val:0x%x \r\n", Flag_FanLock);
-		}
-	}		
+		
 }
 
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
@@ -324,7 +328,7 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 
 	printf("HAL_GPIO_EXTI_Falling_Callback: 0x%x \r\n", GPIO_Pin);
 
-	if((GPIO_PIN_3 == GPIO_Pin)) /* Projector On  LIMIT_L interrupt */
+	if((GPIO_PIN_3 == GPIO_Pin)) /* LIMIT_L interrupt */
 	{
 		val  = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_3);
 		if(Flag_LIMIT_L != val) {
@@ -454,11 +458,13 @@ void SysTask1s(void)
 {
   HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
   //HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
+	//uint8_t val  = HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_8);
+	//printf("PA8:%d \r\n",val);
 }
 
 
 const uint16_t LD_RT_TABLE[] =
-{
+{/* 0~55   45*/
 	3318,  //0 degree
 	3151,	 
 	2993,	
@@ -517,71 +523,6 @@ const uint16_t LD_RT_TABLE[] =
 	296  //55 degree
 };
 
-const uint16_t LCOS_RT_TABLE[] =
-{
-	31880,	//0 degree
-	30330,	
-	28870,	
-	27490,	
-	26180,	
-	24940,	
-	23760,	
-	22650,	
-	21590,	
-	20600,	
-	19650,	
-	18750,	
-	17890,	
-	17080,	
-	16320,	
-	15590,	
-	14890,	
-	14230,	
-	13610,	
-	13010,	
-	12450,	
-	11910,	
-	11390,	
-	10910,	
-	10440,	
-	10000,	//25
-	9579,	
-	9178,	
-	8795,	
-	8431,	
-	8083,	
-	7752,	
-	7436,	
-	7134,	
-	6846,	
-	6572,	
-	6309,	
-	6059,	
-	5819,	
-	5591,	
-	5372,	
-	5163,	
-	4963,	
-	4772,	
-	4590,	
-	4415,	
-	4247,	
-	4087,	
-	3934,	
-	3787,	
-	3646,	
-	3512,	
-	3383,	
-	3259,	
-	3140,	
-	3027,	//55 degree
-	2918,	
-	2813,	
-	2713,	
-	2616,	
-	2524
-};
-
 uint16_t GetLd_RT_Temp(uint16_t adc_val)
 {
 	uint16_t ohm, i;
@@ -599,29 +540,106 @@ uint16_t GetLd_RT_Temp(uint16_t adc_val)
 		if(LD_RT_TABLE[i] < ohm ) break;
 	}
 	
-	return i;
+	return i + 1;
 }
+
+#if 0
+const int16_t LCOS_RT_TABLE[][2] =
+{/* 45 ~ 55*/		
+	{0, 	1839},	
+	{5, 	1784},
+	{10, 	1729},
+	{15, 	1674},	
+	{20, 	1619},	
+	{25, 	1564},
+	{30, 	1509},
+	{31, 	1498},
+	{32, 	1487},
+	{33, 	1476},	
+	{34, 	1465},
+	{35, 	1454},	
+	{36, 	1443},	
+	{37, 	1432},
+	{38, 	1421},
+	{39, 	1410},	
+	{40, 	1399},
+	{41, 	1388},
+	{42, 	1377},
+	{43, 	1366},
+	{44, 	1355},	
+	{45, 	1344},
+	{46, 	1333},
+	{47, 	1322},
+	{48, 	1311},
+	{49, 	1300},	
+	{50, 	1289},
+	{51, 	1278},
+	{52, 	1267},
+	{53, 	1256},
+	{54, 	1245},	
+	{55, 	1234},
+	{56,	1223},
+	{57,	1212},
+	{58,	1201},
+	{59,	1190},
+	{60,	1179},
+	{61,	1168},
+	{62,	1157},
+	{63,	1146},
+	{64,	1135},
+	{65,	1124},
+	{66,	1113},
+	{67,	1102},
+	{68,	1091},
+	{69,	1080},
+	{70,	1069},
+	{71,	1058},
+	{72,	1047},
+	{73,	1036},
+	{74,	1025},
+	{75,	1014},
+	{76,	1003},
+	{77,	992 },
+	{78,	981 },
+	{79,	970 },
+	{80,	959}
+};
 
 uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 {
-	uint16_t ohm, i;
+	uint16_t vol, i;
 	
-	ohm = (40960000/adc_val - 10000);
-	if(ohm >  LCOS_RT_TABLE[0]) 
+	vol = (adc_val*3300)/4096;
+	if(vol >  LCOS_RT_TABLE[0][1]) 
 	{
-		printf("LCOS OHM:%d \r\n",ohm);	
+		printf("LCOS VOL:%d \r\n",vol);	
 
+		return LCOS_RT_TABLE[0][0];
+	}
+	
+	for (i = 0; i < sizeof(LCOS_RT_TABLE)/(2*sizeof(int16_t)); i++)
+	{		
+		if(LCOS_RT_TABLE[i][1] < vol ) break;
+	}
+	
+	return LCOS_RT_TABLE[i][0];
+}
+#else
+uint16_t GetLcos_RT_Temp(uint16_t adc_val)
+{//temp = (1839 - vol)/11
+	uint16_t vol;
+	
+	vol = (adc_val*3300)/4096;
+	if(vol > 1839) 
+	{
+		printf("LCOS VOL:%d \r\n",vol);	
 		return 0;
 	}
 	
-	for (i = 0; i < sizeof(LCOS_RT_TABLE)/sizeof(uint16_t); i++)
-	{		
-		if(LCOS_RT_TABLE[i] < ohm ) break;
-	}
-	
-	return i;
+	return (1839 - vol)/11;
 }
 
+#endif
 
 void SysTask5s(void)
 {
@@ -635,42 +653,46 @@ void SysTask5s(void)
 	ld_temp = GetLd_RT_Temp(ld_adc);
 	lcos_temp = GetLcos_RT_Temp(lcos_adc);
 	printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
-#if 0	
-	if(ld_temp > 45)
-	{  
-			if(Flag_Projector_On != 0)
-			{
-				Flag_Projector_On = 0;
-				A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
-			}	
-			A100_SetFan12Speed(FAN_SPEED_FULL);
-			A100_SetFan34Speed(FAN_SPEED_FULL);
-			A100_SetFan5Speed(FAN_SPEED_FULL);
-	}
-	else if(ld_temp < 25)
+	//A100_GetFanSpeed();
+
+	if(!Flag_FanTest)
 	{
-			if(Flag_Projector_On != 1)
-			{
-				Flag_Projector_On = 1;
-				A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
-			}	
-			A100_SetFan12Speed(FAN_SPEED_SLOW);
-			A100_SetFan34Speed(FAN_SPEED_SLOW);
-			A100_SetFan5Speed(FAN_SPEED_SLOW);
-	}
-	else
-	{
-			if(Flag_Projector_On != 1)
-			{
-				Flag_Projector_On = 1;
-				A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
-			}	
-			g_fan_value = FAN_SPEED_SLOW + (ld_temp-25)*2;
-			A100_SetFan12Speed(g_fan_value);
-			A100_SetFan34Speed(g_fan_value);
-			A100_SetFan5Speed(g_fan_value);
-	}	
+		if(ld_temp > 50)
+		{  	
+				if(Flag_Projector_On != 0)
+				{
+					Flag_Projector_On = 0;
+					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+				}	
+		
+				A100_SetFan12Speed(FAN_SPEED_FULL);
+				A100_SetFan34Speed(FAN_SPEED_FULL);
+		}
+		else if(ld_temp < 40)
+		{
+				if(Flag_Projector_On != 1)
+				{
+					Flag_Projector_On = 1;
+					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+				}	
+				A100_SetFan12Speed(FAN_SPEED_DEFAULT);
+				A100_SetFan34Speed(FAN_SPEED_DEFAULT);
+		}
+#if 0
+		else
+		{
+				if(Flag_Projector_On != 1)
+				{
+					Flag_Projector_On = 1;
+					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+				}	
+				g_fan_value = FAN_SPEED_DEFAULT + 3 * (ld_temp - 40);
+				A100_SetFan12Speed(g_fan_value);
+				A100_SetFan34Speed(g_fan_value);
+		}	
 #endif
+	}
+
 }
 
 void SysTaskDispatch(void)

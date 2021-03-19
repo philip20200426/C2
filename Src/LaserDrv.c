@@ -64,8 +64,11 @@ uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr)
 	return (d[0] << 8) + d[1];
 }
 
-#define MAX_RGB_VAL   96
-#define MIN_RGB_VAL   10
+#define MAX_RGB_VAL   	96
+#define MIN_RGB_VAL   	10
+#define DEFAULT_R_VAL   96
+#define DEFAULT_G_VAL   70
+#define DEFAULT_B_VAL   70
 void A100_SetPwm(uint8_t DevAddr, uint8_t data)
 {
 	uint16_t reg_data = (MAX_RGB_VAL - data) << 4;
@@ -153,9 +156,9 @@ void A100_SetRGBCurrent(void)
 	}
 	else
 	{
-		RedCurrent 	= 96;
-		GreenCurrent = 70;
-		BlueCurrent 	= 70;
+		RedCurrent 	= DEFAULT_R_VAL;
+		GreenCurrent = DEFAULT_G_VAL;
+		BlueCurrent 	= DEFAULT_B_VAL;
 	}
 
 	A100_SetRedCurrent(RedCurrent);

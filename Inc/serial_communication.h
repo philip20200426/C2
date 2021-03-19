@@ -47,7 +47,7 @@
 
 #define A100_GET_DISPLAY_SIZE     	63
 #define A100_GET_BRITNRSS_NUM				64
-#define A100_GET_KST_NUM						65
+//#define A100_GET_KST_NUM						65
 #define A100_GET_DISPLAY_SIZE_NUM  	66
 #define A100_GET_HORIZONTAL_NUM			67
 #define A100_GET_VERTICAL_NUM     	68
@@ -85,6 +85,10 @@
 #define A100_SET_GAMA      					113
 #define A100_SAVE_GAMA      				114
 
+#define A100_TEST_IDC      					120
+#define A100_TEST_DC      					121
+#define A100_TEST_ODC      					122
+
 #define A100_SET_TUNING_PARAMETER  	201
 #define A100_SET_WC_PARAMETER  			202
 #define A100_SET_GAMA_PARAMETER  		203
@@ -95,8 +99,7 @@
 #define A100_VERTICAL_NUM      			1		
 #define A100_CCT_NUM      					2
 #define A100_DISPLAY_SIZE_NUM  			5
-#define A100_SIDE_KST_NUM						10
-#define A100_KST_NUM								10
+
 
 #ifndef UART_BUFFER_MAX_SIZE
   #define UART_BUFFER_MAX_SIZE 			256
@@ -105,7 +108,7 @@
 #define VERSION1 	0
 #define VERSION2 	1
 
-#define FLASH_USER_START_ADDR   (FLASH_BASE + (62 * FLASH_PAGE_SIZE))   /* Start @ of user Flash area */
+#define FLASH_USER_START_ADDR   (FLASH_BASE + (62 * FLASH_PAGE_SIZE))   /*0~63 Start @ of user Flash area */
 #define FLASH_USER_END_ADDR     (FLASH_BASE + FLASH_SIZE - 1)   /* End @ of user Flash area */
 
 #define	GET_BIT(x, bit)	((x & (1 << bit)) >> bit)
@@ -139,8 +142,8 @@ typedef enum
   FAN_SPEED_FULL   = 40 - 1,
   FAN_SPEED_FAST   = 35,
   FAN_SPEED_MIDDLE = 30,
-  FAN_SPEED_DEFAULT= 20,
-  FAN_SPEED_SLOW   = 15,
+  FAN_SPEED_DEFAULT= 15,
+  FAN_SPEED_SLOW   = 10,
   FAN_PEED_STOP    = 0
 
 }FAN_Speed;
@@ -257,10 +260,15 @@ struct Projector_parameter{
 		unsigned int	vflip_valid;
 		unsigned int  display_size;
 		unsigned int	display_size_valid;
-	  unsigned int  keystone;
+		unsigned char kst_val[16];
+		unsigned short  kst_valid;
+		unsigned short  kst_index;
+#ifdef CONFIG_KST_INDEX	
+	  unsigned int 	keystone;
 		unsigned int  keystone_valid;
 		unsigned int  side_keystone;
 		unsigned int  side_keystone_valid;
+#endif
 		unsigned int  throwratio;
 		unsigned int  rgbmode;
 		unsigned int  modeseclection;

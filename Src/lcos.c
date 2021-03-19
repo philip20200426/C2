@@ -4068,9 +4068,6 @@ void A100_LcosSetRGBWDutyMode(void)
 
 }
 
-
-
-
 void A100_Lcos_Inp_SelectMipiRxPortNum(uint8_t num)
 {
   if(num == 0 || num == 1)
