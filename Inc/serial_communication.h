@@ -39,7 +39,8 @@
 #define A100_SET_VERTICAL 		  		50
 #define A100_GET_VERTICAL 		  		51
 #define A100_SET_LED_INPUT 		  		52
-#define A100_DUMP_CXD3554 					54
+#define A100_WRITE_CXD3554					53
+#define A100_READ_CXD3554 					54
 #define A100_GET_ADC_TEMP 		  		55	//ld temperature sensor
 #define A100_SET_DISPLAY_SIZE 		 	56
 #define A100_SET_DISPLAY_ON					57

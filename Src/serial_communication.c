@@ -1311,7 +1311,7 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 							A100_setparameter(&g_projector_para);
 							break;
 					}
-					case A100_DUMP_CXD3554:
+					case A100_READ_CXD3554:
 					{
 							uint8_t reg_data;
 						
@@ -1321,12 +1321,20 @@ void A100_UartCmdHandler(uint8_t *pRx,uint8_t length)
 							recevie_data->data4 = 3554;
 							break;
 					}
+					
+					case A100_WRITE_CXD3554:
+					{						
+							A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, recevie_data->data0, recevie_data->data1);
+							recevie_data->data4 = 3555;
+							break;
+					}
+					
 					case A100_TEST_IDC:
 					{
 							uint8_t reg_h, reg_l;
 						
 							//A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0061, 0xff);
-							A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1840, recevie_data->data2 << 4);
+							A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1840, recevie_data->data2);
 							A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1841, (recevie_data->data0 >> 8) & 0x0f);
 							A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1842, recevie_data->data0 & 0xff);
 							A100_I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1843, (recevie_data->data1 >> 8) & 0x07);
