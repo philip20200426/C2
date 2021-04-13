@@ -69,7 +69,7 @@ uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr)
 #define DEFAULT_R_VAL   96
 #define DEFAULT_G_VAL   70
 #define DEFAULT_B_VAL   70
-void A100_SetPwm(uint8_t DevAddr, uint8_t data)
+void SetPwm(uint8_t DevAddr, uint8_t data)
 {
 	uint16_t reg_data = (MAX_RGB_VAL - data) << 4;
 
@@ -82,7 +82,7 @@ void A100_SetPwm(uint8_t DevAddr, uint8_t data)
 }
 
 
-uint8_t A100_SetGreenCurrent(uint16_t GreenCurrent)
+uint8_t SetGreenCurrent(uint16_t GreenCurrent)
 {
   if(GreenCurrent > MAX_RGB_VAL)
   {
@@ -94,11 +94,11 @@ uint8_t A100_SetGreenCurrent(uint16_t GreenCurrent)
   }
 	
 	g_GreenCurrent = GreenCurrent;
-	A100_SetPwm(TPL1401_GLED_I2C_ADDR, g_GreenCurrent);
+	SetPwm(TPL1401_GLED_I2C_ADDR, g_GreenCurrent);
   return 0;
 }
 
-uint8_t A100_SetBlueCurrent(uint16_t BlueCurrent) 
+uint8_t SetBlueCurrent(uint16_t BlueCurrent) 
 {
   if(BlueCurrent > MAX_RGB_VAL)
   {
@@ -110,12 +110,12 @@ uint8_t A100_SetBlueCurrent(uint16_t BlueCurrent)
   }
 	
 	g_BlueCurrent = BlueCurrent;
-	A100_SetPwm(TPL1401_BLED_I2C_ADDR, g_BlueCurrent);
+	SetPwm(TPL1401_BLED_I2C_ADDR, g_BlueCurrent);
   return 0;
 }
 
 
-uint8_t A100_SetRedCurrent(uint16_t RedCurrent)
+uint8_t SetRedCurrent(uint16_t RedCurrent)
 {
 
 	if(RedCurrent > MAX_RGB_VAL)
@@ -129,12 +129,12 @@ uint8_t A100_SetRedCurrent(uint16_t RedCurrent)
   }
 	
 	g_RedCurrent = RedCurrent;
-	A100_SetPwm(TPL1401_RLED_I2C_ADDR, g_RedCurrent);
+	SetPwm(TPL1401_RLED_I2C_ADDR, g_RedCurrent);
 
   return 0;
 }
 
-void A100_SetRGBCurrent(void)
+void SetRGBCurrent(void)
 {
 	uint16_t RedCurrent;
 	uint16_t GreenCurrent;	
@@ -161,9 +161,9 @@ void A100_SetRGBCurrent(void)
 		BlueCurrent 	= DEFAULT_B_VAL;
 	}
 
-	A100_SetRedCurrent(RedCurrent);
-  A100_SetGreenCurrent(GreenCurrent);
-  A100_SetBlueCurrent(BlueCurrent);
+	SetRedCurrent(RedCurrent);
+  SetGreenCurrent(GreenCurrent);
+  SetBlueCurrent(BlueCurrent);
 	
 #if 0
 	{

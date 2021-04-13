@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32G070xx,USE_HAL_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                            ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                            ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                            ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
+              <IncludePath>../Inc;                                                                                           ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                           ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                           ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -408,14 +408,14 @@
               <FilePath>..\Src\Motor.c</FilePath>
             </File>
             <File>
-              <FileName>a5931.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\a5931.c</FilePath>
-            </File>
-            <File>
               <FileName>LaserDrv.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\LaserDrv.c</FilePath>
+            </File>
+            <File>
+              <FileName>a5931.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\a5931.c</FilePath>
             </File>
             <File>
               <FileName>main.c</FileName>

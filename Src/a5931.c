@@ -119,9 +119,9 @@ uint16_t A5931_init_data[] = {
 	0x0000,
 };	
 
-void A5931_init(void)
+void ThreePhaseMotorDriver_init(void)
 {
-	uint16_t data = 0, i;
+	uint16_t i;
 	
 	if(A5931_ReadI2C_Byte((uint8_t)0) != ASU_FLAG) {
 		for(i=0;i<sizeof(A5931_init_data)/sizeof(uint16_t);i++) {
@@ -130,9 +130,9 @@ void A5931_init(void)
 		}
 	}
 	
-#if 1	
+#if 0	
 	for(i=0;i<24;i++) {
-		data = A5931_ReadI2C_Byte((uint8_t)i);
+		uint16_t data = A5931_ReadI2C_Byte((uint8_t)i);
 		printf("A5931_init read reg %d->0x%x\r\n",i, data);
 	}
 #endif	

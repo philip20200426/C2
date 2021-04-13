@@ -17,89 +17,91 @@
 #include "LaserDrv.h"
 
 /* Private define ------------------------------------------------------------*/
-#define A100_UART_COMMAND_HEAD 		101
-#define A100_UART_COMMAND_END  		102
+#define UART_COMMAND_HEAD 		101
+#define UART_COMMAND_END  		102
 
-#define A100_I2C_WRITE        		  3
-#define A100_I2C_READ       	 	    4
+#define I2C_WRITE        		  3
+#define I2C_READ       	 	    4
 
-#define A100_GET_OE_FAN_SPEED 			7
-#define A100_SET_OE_FAN_SPEED 			8
-#define A100_SET_HAPTIC_START 		  9
-#define A100_SET_CURRENT_MODE  			16
-#define A100_SET_INT_PATTERN_TYPE 	18
-#define A100_SET_SOURCE_INPUT 		  22
-#define A100_SET_LED				   		  42
-#define A100_GET_VERSION				    43
-#define A100_SET_KST				        44
-#define A100_GET_KST				        45
-#define A100_GET_CURRENT_MODE  			46
-#define A100_SET_HORIZONTAL 		  	48
-#define A100_GET_HORIZONTAL 		  	49
-#define A100_SET_VERTICAL 		  		50
-#define A100_GET_VERTICAL 		  		51
-#define A100_SET_LED_INPUT 		  		52
-#define A100_WRITE_CXD3554					53
-#define A100_READ_CXD3554 					54
-#define A100_GET_ADC_TEMP 		  		55	//ld temperature sensor
-#define A100_SET_DISPLAY_SIZE 		 	56
-#define A100_SET_DISPLAY_ON					57
-#define A100_SET_MOTOR_START				58
+#define SET_GPIOC 						5
+#define SET_WEC 							6
+#define GET_OE_FAN_SPEED 			7
+#define SET_OE_FAN_SPEED 			8
+#define SET_HAPTIC_START 		  9
+#define SET_CURRENT_MODE  			16
+#define SET_INT_PATTERN_TYPE 	18
+#define SET_SOURCE_INPUT 		  22
+#define SET_LED				   		  42
+#define GET_VERSION				    43
+#define SET_KST				        44
+#define GET_KST				        45
+#define GET_CURRENT_MODE  			46
+#define SET_HORIZONTAL 		  	48
+#define GET_HORIZONTAL 		  	49
+#define SET_VERTICAL 		  		50
+#define GET_VERTICAL 		  		51
+#define SET_LED_INPUT 		  		52
+#define WRITE_CXD3554					53
+#define READ_CXD3554 					54
+#define GET_ADC_TEMP 		  		55	//ld temperature sensor
+#define SET_DISPLAY_SIZE 		 	56
+#define SET_DISPLAY_ON					57
+#define SET_MOTOR_START				58
 
-#define A100_GET_DISPLAY_SIZE     	63
-#define A100_GET_BRITNRSS_NUM				64
-//#define A100_GET_KST_NUM						65
-#define A100_GET_DISPLAY_SIZE_NUM  	66
-#define A100_GET_HORIZONTAL_NUM			67
-#define A100_GET_VERTICAL_NUM     	68
-#define A100_GET_LED_ON_OFF      		69
-#define A100_GET_ADC_PS      				70  //ps out(photo sensor)
-#define A100_GET_ADC_TS      				71	//ts out(temperature sensor)
-#define A100_GET_TUNING_PARAMETER  	74
-#define A100_SET_CCT_MODE  					75
-#define A100_GET_CCT_MODE  					76
-#define A100_GET_CCT_NUM						77
-#define A100_SET_R_GAIN           	80
-#define A100_GET_R_GAIN           	81
-#define A100_SET_G_GAIN           	82
-#define A100_GET_G_GAIN           	83
-#define A100_SET_B_GAIN           	84
-#define A100_GET_B_GAIN           	85
-#define A100_SET_SIDE_KST				  	86
-#define A100_GET_SIDE_KST				  	87
-#define A100_GET_SIDE_KST_NUM     	89
-#define A100_SET_WC_EN      				90
-#define A100_READ_GAMA      				91
-#define A100_WRITE_GAMA      				92
-#define A100_WRITE_SXRD      				93
-#define A100_SET_IPG      					94
-#define A100_READ_CXD      					95
-#define A100_WRITE_CXD      				96
-#define A100_SET_WC_EN1      				97
-#define A100_SET_WC_EN2      				98
-#define A100_GET_WC      						99
-#define A100_SET_WC_SAVE      			100
+#define GET_DISPLAY_SIZE     	63
+#define GET_BRITNRSS_NUM				64
+//#define GET_KST_NUM						65
+#define GET_DISPLAY_SIZE_NUM  	66
+#define GET_HORIZONTAL_NUM			67
+#define GET_VERTICAL_NUM     	68
+#define GET_LED_ON_OFF      		69
+#define GET_ADC_PS      				70  //ps out(photo sensor)
+#define GET_ADC_TS      				71	//ts out(temperature sensor)
+#define GET_TUNING_PARAMETER  	74
+#define SET_CCT_MODE  					75
+#define GET_CCT_MODE  					76
+#define GET_CCT_NUM						77
+#define SET_R_GAIN           	80
+#define GET_R_GAIN           	81
+#define SET_G_GAIN           	82
+#define GET_G_GAIN           	83
+#define SET_B_GAIN           	84
+#define GET_B_GAIN           	85
+#define SET_SIDE_KST				  	86
+#define GET_SIDE_KST				  	87
+#define GET_SIDE_KST_NUM     	89
+#define SET_WC_EN      				90
+#define READ_GAMA      				91
+#define WRITE_GAMA      				92
+#define WRITE_SXRD      				93
+#define SET_IPG      					94
+#define READ_CXD      					95
+#define WRITE_CXD      				96
+#define SET_WC_EN1      				97
+#define SET_WC_EN2      				98
+#define GET_WC      						99
+#define SET_WC_SAVE      			100
 //101 don't use
-#define A100_SET_PARAMRTER     			102
-#define A100_GET_CURRENT     				111
-#define A100_GET_GAMA      					112
-#define A100_SET_GAMA      					113
-#define A100_SAVE_GAMA      				114
+#define SET_PARAMRTER     			102
+#define GET_CURRENT     				111
+#define GET_GAMA      					112
+#define SET_GAMA      					113
+#define SAVE_GAMA      				114
 
-#define A100_TEST_IDC      					120
-#define A100_TEST_DC      					121
-#define A100_TEST_ODC      					122
+#define TEST_IDC      					120
+#define TEST_DC      					121
+#define TEST_ODC      					122
 
-#define A100_SET_TUNING_PARAMETER  	201
-#define A100_SET_WC_PARAMETER  			202
-#define A100_SET_GAMA_PARAMETER  		203
-#define A100_GET_GAMA_PARAMETER  		204
+#define SET_TUNING_PARAMETER  	201
+#define SET_WC_PARAMETER  			202
+#define SET_GAMA_PARAMETER  		203
+#define GET_GAMA_PARAMETER  		204
 
-#define A100_BRITNRSS_NUM						2
-#define A100_HORIZONTAL_NUM					1
-#define A100_VERTICAL_NUM      			1		
-#define A100_CCT_NUM      					2
-#define A100_DISPLAY_SIZE_NUM  			5
+#define BRITNRSS_NUM						2
+#define HORIZONTAL_NUM					1
+#define VERTICAL_NUM      			1		
+#define CCT_NUM      						2
+#define DISPLAY_SIZE_NUM  			5
 
 
 #ifndef UART_BUFFER_MAX_SIZE
@@ -152,10 +154,10 @@ typedef enum
 /*
 typedef enum
 {
-  A100_SET_LED_RRGGBBGG = 0,
-  A100_SET_LED_RRGGRRBB = 1,
-  A100_SET_LED_RRBBGGBB = 2,
-  A100_SET_LED_RRGGBBWW = 3,
+  SET_LED_RRGGBBGG = 0,
+  SET_LED_RRGGRRBB = 1,
+  SET_LED_RRBBGGBB = 2,
+  SET_LED_RRGGBBWW = 3,
 }LED_Mode;
 
 typedef enum
@@ -190,6 +192,20 @@ typedef enum
 
 }V_FLIP_Mode;
 
+typedef enum
+{
+	MOTOR_CENTER   			= 0,
+	MOTOR_RIGHT		 			= 1,
+	MOTOR_LEFT   				= 2,
+	
+}MOTOR_position;
+
+typedef enum
+{
+	LIMIT_RIGHT		 			= 0,
+	LIMIT_LEFT   				= 1,
+	LIMIT_UNKNOWN		 		= 10,	
+}LIMIT_position;
 /* Private variables ---------------------------------------------------------*/
 struct Projector_current{
 		unsigned short  red_current ;
@@ -284,7 +300,7 @@ struct Projector_parameter{
 		struct Projector_Gama gamma_data;
 		struct Projector_CCT projector_tuning;
 		unsigned char lt89121_valid;
-		unsigned char reserved[3];//don't modify alignment 8
+		unsigned char reserved[7];//don't modify alignment 8
 };
 
 struct Projector_date{
@@ -318,25 +334,25 @@ struct asu_date{
 };
 
 /* Exported functions prototypes ---------------------------------------------*/
-extern void A100_UartCmdHandler(uint8_t *pRx,uint8_t length);
-extern uint8_t A100_SetFan12Speed(uint32_t speed);
-extern uint8_t A100_SetFan34Speed(uint32_t speed);
-extern uint8_t A100_SetFan5Speed(uint32_t speed);
-extern void A100_I2cWriteCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t I2cData);
-extern void A100_I2cReadCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t *I2cData);
-extern void A100_I2cWriteSxmb241(uint8_t I2cAddr,uint8_t I2cReg,uint8_t I2cData);
-extern void A100_I2cReadSxmb241(uint8_t I2cAddr, uint8_t I2cReg, uint8_t *I2cData);
+extern void UartCmdHandler(uint8_t *pRx,uint8_t length);
+extern uint8_t SetFan12Speed(uint32_t speed);
+extern uint8_t SetFan34Speed(uint32_t speed);
+extern uint8_t SetFan5Speed(uint32_t speed);
+extern void I2cWriteCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t I2cData);
+extern void I2cReadCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t *I2cData);
+extern void I2cWriteSxmb241(uint8_t I2cAddr,uint8_t I2cReg,uint8_t I2cData);
+extern void I2cReadSxmb241(uint8_t I2cAddr, uint8_t I2cReg, uint8_t *I2cData);
 uint16_t adc_GetTsOut(void);
 uint16_t adc_GetPsOut(void);
 extern uint16_t adc_GetLDTemp(void);
 extern uint16_t adc_GetAdcVal(uint16_t *val);
-extern void A100_display_on(uint16_t on);
+extern void display_on(uint16_t on);
 extern uint8_t Motor_start(uint8_t dir, uint16_t steps);
-extern void A100_SetRGBCurrent(void);
-extern uint8_t A100_SetRedCurrent(uint16_t RedCurrent);
-extern uint8_t A100_SetGreenCurrent(uint16_t RedCurrent);
-extern uint8_t A100_SetBlueCurrent(uint16_t RedCurrent);
-extern void A100_Dump_Cxd3554(uint16_t begin, uint16_t end);
+extern void SetRGBCurrent(void);
+extern uint8_t SetRedCurrent(uint16_t RedCurrent);
+extern uint8_t SetGreenCurrent(uint16_t RedCurrent);
+extern uint8_t SetBlueCurrent(uint16_t RedCurrent);
+extern void Dump_Cxd3554(uint16_t begin, uint16_t end);
 extern uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr);
 /* Exported variables --------------------------------------------------------*/
 

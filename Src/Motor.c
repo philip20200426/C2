@@ -1,12 +1,31 @@
 #include "Motor.h"
 #include "tim.h"
 #include "stdio.h"
-#if 1
+#include "string.h"
+#include "serial_communication.h"
+
+extern void Uart_SendResponse(uint16_t cmd, uint8_t result);
+void MotorStop_UartRes(uint8_t result);
+
+#define BONGINGNUM  300
+static uint8_t MotorPositon = MOTOR_CENTER;
+static int bongingcount = BONGINGNUM;
+
+void MotorLimit_DealWith(uint8_t lr)
+{
+	bongingcount = BONGINGNUM;
+	if(lr == LIMIT_LEFT)
+		MotorPositon = MOTOR_LEFT;
+	else 	if(lr == LIMIT_RIGHT)
+		MotorPositon = MOTOR_RIGHT;
+	
+	MotorStop_UartRes(MotorPositon);
+}
+
+#ifndef MOTOR_DRV8428
 uint32_t MotorStepcnt = 0;
 uint8_t MotorDirection = 0;
 uint8_t MotorStep = 0;
-extern volatile _Bool Flag_LIMIT_L;
-extern volatile _Bool Flag_LIMIT_R;
 
 void Motor_Stop(void);
 
@@ -23,12 +42,6 @@ void Motor_Exit_Sleep(void)
 
 void Motor_Drive_8step(uint8_t step)
 {
-	if(Flag_LIMIT_L || Flag_LIMIT_R) {
-		printf("8_Motor_Stop:Flag_LIMIT_L=%d Flag_LIMIT_R=%d \r\n",Flag_LIMIT_L,Flag_LIMIT_R);
-		HAL_Delay(3);
-		Motor_Stop();
-		return;
-	}
 	Motor_Exit_Sleep();
 	switch(step)
 	{
@@ -92,12 +105,6 @@ void Motor_Drive_8step(uint8_t step)
 
 void Motor_Drive_4step(uint8_t step)
 {
-	if(Flag_LIMIT_L || Flag_LIMIT_R) {
-		printf("4_Motor_Stop:Flag_LIMIT_L=%d Flag_LIMIT_R=%d \r\n",Flag_LIMIT_L,Flag_LIMIT_R);
-		HAL_Delay(3);
-		Motor_Stop();
-		return;
-	}
 	Motor_Exit_Sleep();
 	switch(step)
 	{
@@ -141,6 +148,13 @@ void Motor_Stop(void)
 	HAL_GPIO_WritePin(MOTOR_GPIO_Port,IN4_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(MOTOR_GPIO_Port, SLEEP_Pin, GPIO_PIN_RESET);//enter sleep
 }
+
+void MotorStop_UartRes(uint8_t result)
+{
+	Motor_Stop();
+	Uart_SendResponse(SET_MOTOR_START, result);
+}
+
 
 void Motor_Foreward_4step(void)
 {
@@ -192,6 +206,7 @@ void Motor_Set_Para(uint8_t Dir, uint32_t Step)
 void Motor_Step_AutoRun_8step(void)
 {
 	while(MotorStepcnt--) {
+		bongingcount--;
 		if(1==MotorDirection)
 			Motor_Foreward_8step();
 		else
@@ -199,12 +214,18 @@ void Motor_Step_AutoRun_8step(void)
 		
 		HAL_Delay(1);
 	}
-	Motor_Stop();
+	
+	if(MotorPositon != MOTOR_CENTER) {
+	 if(bongingcount < 0)
+		 MotorPositon = MOTOR_CENTER;
+	}	
+	MotorStop_UartRes(MotorPositon);
 }
 
 void Motor_Step_AutoRun_4step(void)
 {
 	while(MotorStepcnt--) {
+		bongingcount--;
 		if(1==MotorDirection)
 			Motor_Foreward_4step();
 		else
@@ -212,7 +233,12 @@ void Motor_Step_AutoRun_4step(void)
 		
 		HAL_Delay(1);
 	}
-	Motor_Stop();
+	
+	if(MotorPositon != MOTOR_CENTER) {
+	 if(bongingcount < 0)
+		 MotorPositon = MOTOR_CENTER;
+	}	
+	MotorStop_UartRes(MotorPositon);
 }
 
 uint8_t Motor_start(uint8_t dir, uint16_t steps)
@@ -222,37 +248,59 @@ uint8_t Motor_start(uint8_t dir, uint16_t steps)
 	
 	return 0;
 }
-#else
+
+void StepperVar_Init(void)
+{
+
+}
+#else //TI DRV8428
 
 typedef struct Stepper_Driving_Stu
 {
-	volatile uint8_t dir;	 // 0 -Forword  1 -Reverse 
+	uint16_t count_steps; //	
 	uint16_t num_steps; // number of steps to move
-	uint16_t count_steps; // count of steps
 	uint16_t speed; //speed of motor once running
 	
 } Stepper_Driving_Stu_t;
 
 Stepper_Driving_Stu_t gStepper;
 
-uint8_t Motor_start(uint8_t dir, uint16_t steps)
+void StepperVar_Init(void)
 {
-	if(gStepper.dir != dir)
-	{
-		gStepper.dir = dir;
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, (GPIO_PinState)gStepper.dir);
-		HAL_Delay(1);
-	}
+	memset(&gStepper, 0, sizeof(struct Stepper_Driving_Stu));
+	gStepper.num_steps = 1;
+}
+
+void Motor_Stop(void)
+{
+	HAL_TIM_PWM_Stop_IT(&htim1,TIM_CHANNEL_1);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET); //enter sleep	
+}
+
+void MotorStop_UartRes(uint8_t result)
+{
+	Motor_Stop();
+	gStepper.count_steps = 0;
+	
+	Uart_SendResponse(SET_MOTOR_START, result);
+}
+
+uint8_t Motor_start(uint8_t dir, uint16_t steps)
+{	
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, (GPIO_PinState)!dir);
+	HAL_Delay(1);
 
 	gStepper.num_steps = steps;
-	gStepper.count_steps = 0;
-	HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_SET); //exit SLEEP
 	
+	//HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);	
+	HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
 	return 0;
 }
 
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 {
+#if 0
 	if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
 	{
 		/* Get the Capture Compare Register value */
@@ -265,5 +313,24 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		printf("ReadStepsValue: %d \r\n",gStepper.count_steps);
 	}
+#endif
+}
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+	{
+		gStepper.count_steps++;
+		bongingcount--;
+		//printf("HAL_TIM_PWM_PulseFinishedCallback: %d \r\n",cnt);
+		if(gStepper.count_steps == gStepper.num_steps)
+		 {
+			 if(MotorPositon != MOTOR_CENTER) {
+				 if(bongingcount < 0)
+					 MotorPositon = MOTOR_CENTER;
+			 }
+				MotorStop_UartRes(MotorPositon);
+		 }
+ } 
 }
 #endif

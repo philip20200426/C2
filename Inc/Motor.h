@@ -6,6 +6,8 @@
 #include "stm32g0xx_hal.h"
 #include "main.h"
 
+#define MOTOR_DRV8428
+
 #define MOTOR_GPIO_Port GPIOC
 #define IN1_Pin GPIO_PIN_8
 #define IN2_Pin GPIO_PIN_7

@@ -118,60 +118,60 @@ extern uint8_t ErrBuf1[10][16];
 extern uint8_t ErrBuf2[10][16];
 extern uint8_t FlagCheckLcosRegError[10];
 
-void A100_CXD3554_CKGBlock_Setting(void);
-void A100_CXD3554_MIPIBlock_settint(void);
-void A100_CXD3554_FRCAgentBlock_Setting(void);
-void A100_CXD3554_GMPORTBlock_Setting(void);
-void A100_CXD3554_PLLMem1Block_Setting(void);
-void A100_CXD3554_MINIDSIBlock_Setting(void);
-void A100_CXD3554_LPDDR2Block_Setting(void);
-void A100_CXD3554_DDR2Block_Setting(void);
-void A100_CXD3554_TXBlock_Setting(void);
-void A100_CXD3554_VIDEOBlock_Setting(void);
+void CXD3554_CKGBlock_Setting(void);
+void CXD3554_MIPIBlock_settint(void);
+void CXD3554_FRCAgentBlock_Setting(void);
+void CXD3554_GMPORTBlock_Setting(void);
+void CXD3554_PLLMem1Block_Setting(void);
+void CXD3554_MINIDSIBlock_Setting(void);
+void CXD3554_LPDDR2Block_Setting(void);
+void CXD3554_DDR2Block_Setting(void);
+void CXD3554_TXBlock_Setting(void);
+void CXD3554_VIDEOBlock_Setting(void);
 
 
-void A100_Sxrd241_SC_Enable(void);
-void A100_Sxrd241_SC_Disable(void);
-void A100_Sxrd241_Video_Enable(void);
-void A100_CXD3554_FRCBlock_Start(void);
+void Sxrd241_SC_Enable(void);
+void Sxrd241_SC_Disable(void);
+void Sxrd241_Video_Enable(void);
+void CXD3554_FRCBlock_Start(void);
 
 
-void A100_CXD3554_TxBlock_Setting2(void);
+void CXD3554_TxBlock_Setting2(void);
 
-void A100_Sxrd241_Poweron(void);
+void Sxrd241_Poweron(void);
 
-void A100_XD3554_FRCBlock_Start_Setting(void);
-void A100_Sxrd241_Register_setting(void);
-void A100_CXD3554_FRC_FrameLock(void);
-void A100_LcosInitSequence(void);
+void XD3554_FRCBlock_Start_Setting(void);
+void Sxrd241_Register_setting(void);
+void CXD3554_FRC_FrameLock(void);
+void LcosInitSequence(void);
 
 
-void A100_LcosSetPatternSize(void);
+void LcosSetPatternSize(void);
 
-void A100_LcosSetIntPattern(void);
-void A100_LcosInit(void);
-void A100_Cxd3554Init(void);
-void A100_Sxrd241Init(void);
-void A100_Sxrd241_EfuseSetting(void);
-void A100_Cxd3554Init_Sequence2_Step1(void);
-void A100_Cxd3554Init_Sequence2_Step2(void);
-void A100_Cxd3554Init_Sequence2_Step3(void);
-void A100_Cxd3554Init_Sequence2_Step4(void);
-void A100_Cxd3554Init_Sequence4_Step1(void);
-void A100_Cxd3554Init_Sequence4_Step2(void);
-void A100_Cxd3554Init_Sequence1(void);
-void A100_Cxd3554Init_Sequence2(void);
-void A100_Cxd3554Init_Sequence3(void);
-void A100_Cxd3554Init_Sequence4(void);
-void A100_Cxd3554Init_Sequence5(void);
-void A100_LcosVideoMute(CXD3554VIDEO_ONOFF);
-void A100_LcosSetRGBWDutyMode(void);
-void A100_Lcos_Inp_ClearMipiTrnsErr(void);
-void A100_Lcos_CheckRegError(uint8_t local);
-//void A100_LcosSetFlip(void);
-void A100_SetDisplay_Size(void);
-void A100_LcosInitGamma(void);
-void A100_LcosSetRRGGBBGGMode(void);
+void LcosSetIntPattern(void);
+void LcosInit(void);
+void Cxd3554Init(void);
+void Sxrd241Init(void);
+void Sxrd241_EfuseSetting(void);
+void Cxd3554Init_Sequence2_Step1(void);
+void Cxd3554Init_Sequence2_Step2(void);
+void Cxd3554Init_Sequence2_Step3(void);
+void Cxd3554Init_Sequence2_Step4(void);
+void Cxd3554Init_Sequence4_Step1(void);
+void Cxd3554Init_Sequence4_Step2(void);
+void Cxd3554Init_Sequence1(void);
+void Cxd3554Init_Sequence2(void);
+void Cxd3554Init_Sequence3(void);
+void Cxd3554Init_Sequence4(void);
+void Cxd3554Init_Sequence5(void);
+void LcosVideoMute(CXD3554VIDEO_ONOFF);
+void LcosSetRGBWDutyMode(void);
+void Lcos_Inp_ClearMipiTrnsErr(void);
+void Lcos_CheckRegError(uint8_t local);
+//void LcosSetFlip(void);
+void SetDisplay_Size(void);
+void LcosInitGamma(void);
+void LcosSetRRGGBBGGMode(void);
 #endif
 
 

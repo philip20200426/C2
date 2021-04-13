@@ -82,8 +82,6 @@ volatile _Bool Flag1s = 0;
 volatile _Bool Flag5s = 0;
 volatile _Bool Flag_Sxrd241_Alarm = 0;
 volatile _Bool Flag_Projector_On = 0;
-volatile _Bool Flag_LIMIT_L = 0;
-volatile _Bool Flag_LIMIT_R = 0;
 //volatile _Bool Flag_FanLock = 0;
 volatile _Bool Flag_LT9211_Int = 0;
 volatile _Bool Flag_FanTest = 0;
@@ -93,18 +91,20 @@ uint32_t g_fan_value;
 uint8_t gpiopin = 0;
 
 void SysTaskDispatch(void);
-extern void A100_Variables_Init(void);
-extern void A5931_init(void);
-extern void A100_LcosSetKst(void);
-extern void A100_LcosSetWC(void);
-extern void A100_LcosSetGamma(void);
-extern void A100_LcosSetGain(void);
-extern void A100_LcosSetFlip(void);
-extern void A100_GetParameter(void);
-extern void A100_ReceiveUart1Data(void);
-extern HAL_StatusTypeDef A100_SetBootPinMode(void);
-extern void A100_Lcos_CheckRegError(uint8_t local);
-extern 	uint8_t A100_GetFanSpeed(void);
+extern void Variables_Init(void);
+extern void ThreePhaseMotorDriver_init(void);
+extern void LcosSetKst(void);
+extern void LcosSetWC(void);
+extern void LcosSetGamma(void);
+extern void LcosSetGain(void);
+extern void LcosSetFlip(void);
+extern void LcosInitWec(void);
+extern void GetParameter(void);
+extern void ReceiveUart1Data(void);
+extern HAL_StatusTypeDef SetBootPinMode(void);
+extern void Lcos_CheckRegError(uint8_t local);
+extern 	uint8_t GetFanSpeed(void);
+extern void MotorLimit_DealWith(uint8_t lr);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -116,32 +116,32 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void A100_SetRGB_Enable(GPIO_PinState value)
+void SetRGB_Enable(GPIO_PinState value)
 {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, value); //LD_EN enable LD DC-DC EN
 }
 
-void 	A100_display_on(uint16_t on)
+void 	display_on(uint16_t on)
 {
 	if(on==1)
 	{
-		A100_SetRGB_Enable(GPIO_PIN_SET);
+		SetRGB_Enable(GPIO_PIN_SET);
 	}
 	else
 	{
-		A100_SetRGB_Enable(GPIO_PIN_RESET);		
+		SetRGB_Enable(GPIO_PIN_RESET);		
 	}
 }	
 
-void A100_GpioConfig(void)
+void GpioConfig(void)
 {
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);    //FAN_OFF enable Fan
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);    //CX3554_3V3_EN 
-	A100_LcosVideoMute(VIDEO_UNMUTE);
-	A100_SetRGB_Enable(GPIO_PIN_SET); //LD_EN	
+	LcosVideoMute(VIDEO_UNMUTE);
+	SetRGB_Enable(GPIO_PIN_SET); //LD_EN	
 }
 
-void A100_LT89121_Reset(void)
+void LT89121_Reset(void)
 {
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_RESET);
 	HAL_Delay(20);		
@@ -192,31 +192,32 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	printf("main() Projector_parameter size=%d \r\n",sizeof(struct Projector_parameter));
 
-	A100_Variables_Init();
-  A100_GetParameter();
-  A100_GpioConfig();	
-	A100_SetFan12Speed(FAN_SPEED_DEFAULT);
-	A100_SetFan34Speed(FAN_SPEED_DEFAULT);
-  A100_SetFan5Speed(FAN_SPEED_SLOW);
-	A5931_init();	
+	Variables_Init();
+  GetParameter();
+  GpioConfig();	
+	SetFan12Speed(FAN_SPEED_DEFAULT);
+	SetFan34Speed(FAN_SPEED_DEFAULT);
+  SetFan5Speed(FAN_SPEED_SLOW);
+	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	
-  A100_SetRGBCurrent();
-  A100_LcosInitSequence();
-  A100_LcosSetPatternSize();
-  A100_LcosSetIntPattern();
-	A100_LcosSetRRGGBBGGMode();
-	A100_LcosInitGamma();
+  SetRGBCurrent();
+  LcosInitSequence();
+  LcosSetPatternSize();
+  LcosSetIntPattern();
+	LcosSetRRGGBBGGMode();
+	LcosInitGamma();
 	
-	A100_LcosSetFlip();
-	A100_LcosSetKst();
-	A100_LcosSetWC();
-	A100_LcosSetGamma();
-	A100_LcosSetGain();
-
-	A100_LT89121_Reset();
-	A100_SetBootPinMode();
-	A100_ReceiveUart1Data();
+	LcosSetFlip();
+	LcosSetKst();
+	LcosSetWC();
+	LcosSetGamma();
+	LcosSetGain();
+	//LcosInitWec();
+	
+	LT89121_Reset();
+	SetBootPinMode();
+	ReceiveUart1Data();
 #if 1	
   /*## Start the Input Capture in interrupt mode ##########################*/
   if(HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1) != HAL_OK)
@@ -298,26 +299,16 @@ void SystemClock_Config(void)
 
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
-	uint8_t val;
-	
 	printf("HAL_GPIO_EXTI_Rising_Callback: 0x%x \r\n", GPIO_Pin);
 
 	if((GPIO_PIN_3 == GPIO_Pin)) /* LIMIT_L interrupt */
 	{
-		val  = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_3);
-		if(Flag_LIMIT_L != val) {
-			Flag_LIMIT_L = val;
-			printf("HAL_GPIO_EXTI_Rising_Callback: PC3 val:0x%x \r\n", Flag_LIMIT_L);
-		}
+			MotorLimit_DealWith(LIMIT_LEFT);
 	}
 
 	if((GPIO_PIN_4 == GPIO_Pin)) /*  LIMIT_R interrupt */
 	{
-		val = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_4);
-		if(Flag_LIMIT_R != val) {
-			Flag_LIMIT_R = val;
-			printf("HAL_GPIO_EXTI_Rising_Callback: PC4 val:0x%x \r\n", Flag_LIMIT_R);
-		}
+			MotorLimit_DealWith(LIMIT_RIGHT);
 	}
 		
 }
@@ -327,25 +318,6 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 	uint8_t val;
 
 	printf("HAL_GPIO_EXTI_Falling_Callback: 0x%x \r\n", GPIO_Pin);
-
-	if((GPIO_PIN_3 == GPIO_Pin)) /* LIMIT_L interrupt */
-	{
-		val  = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_3);
-		if(Flag_LIMIT_L != val) {
-			Flag_LIMIT_L = val;
-			printf("HAL_GPIO_EXTI_Falling_Callback: PC3 val:0x%x \r\n", Flag_LIMIT_L);
-		}
-	}
-
-	if((GPIO_PIN_4 == GPIO_Pin)) /*  LIMIT_R interrupt */
-	{
-		val = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_4);
-		if(Flag_LIMIT_R != val) {
-			Flag_LIMIT_R = val;
-			printf("HAL_GPIO_EXTI_Falling_Callback: PC4 val:0x%x \r\n", Flag_LIMIT_R);
-		}
-	}
-	
 	if((GPIO_PIN_15 == GPIO_Pin) && (0 == Flag_Sxrd241_Alarm)) /* SXRD241 SHORT DET interrupt */
 	{
 		val  = HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_15);
@@ -543,88 +515,6 @@ uint16_t GetLd_RT_Temp(uint16_t adc_val)
 	return i + 1;
 }
 
-#if 0
-const int16_t LCOS_RT_TABLE[][2] =
-{/* 45 ~ 55*/		
-	{0, 	1839},	
-	{5, 	1784},
-	{10, 	1729},
-	{15, 	1674},	
-	{20, 	1619},	
-	{25, 	1564},
-	{30, 	1509},
-	{31, 	1498},
-	{32, 	1487},
-	{33, 	1476},	
-	{34, 	1465},
-	{35, 	1454},	
-	{36, 	1443},	
-	{37, 	1432},
-	{38, 	1421},
-	{39, 	1410},	
-	{40, 	1399},
-	{41, 	1388},
-	{42, 	1377},
-	{43, 	1366},
-	{44, 	1355},	
-	{45, 	1344},
-	{46, 	1333},
-	{47, 	1322},
-	{48, 	1311},
-	{49, 	1300},	
-	{50, 	1289},
-	{51, 	1278},
-	{52, 	1267},
-	{53, 	1256},
-	{54, 	1245},	
-	{55, 	1234},
-	{56,	1223},
-	{57,	1212},
-	{58,	1201},
-	{59,	1190},
-	{60,	1179},
-	{61,	1168},
-	{62,	1157},
-	{63,	1146},
-	{64,	1135},
-	{65,	1124},
-	{66,	1113},
-	{67,	1102},
-	{68,	1091},
-	{69,	1080},
-	{70,	1069},
-	{71,	1058},
-	{72,	1047},
-	{73,	1036},
-	{74,	1025},
-	{75,	1014},
-	{76,	1003},
-	{77,	992 },
-	{78,	981 },
-	{79,	970 },
-	{80,	959}
-};
-
-uint16_t GetLcos_RT_Temp(uint16_t adc_val)
-{
-	uint16_t vol, i;
-	
-	vol = (adc_val*3300)/4096;
-	if(vol >  LCOS_RT_TABLE[0][1]) 
-	{
-		printf("LCOS VOL:%d \r\n",vol);	
-
-		return LCOS_RT_TABLE[0][0];
-	}
-	
-	for (i = 0; i < sizeof(LCOS_RT_TABLE)/(2*sizeof(int16_t)); i++)
-	{		
-		if(LCOS_RT_TABLE[i][1] < vol ) break;
-	}
-	
-	return LCOS_RT_TABLE[i][0];
-}
-#else
 uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 {//temp = (1839 - vol)/11
 	uint16_t vol;
@@ -632,14 +522,12 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 	vol = (adc_val*3300)/4096;
 	if(vol > 1839) 
 	{
-		printf("LCOS VOL:%d \r\n",vol);	
+		//printf("LCOS VOL:%d \r\n",vol);	
 		return 0;
 	}
 	
 	return (1839 - vol)/11;
 }
-
-#endif
 
 void SysTask5s(void)
 {
@@ -653,7 +541,7 @@ void SysTask5s(void)
 	ld_temp = GetLd_RT_Temp(ld_adc);
 	lcos_temp = GetLcos_RT_Temp(lcos_adc);
 	printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
-	//A100_GetFanSpeed();
+	//GetFanSpeed();
 
 	if(!Flag_FanTest)
 	{
@@ -662,21 +550,21 @@ void SysTask5s(void)
 				if(Flag_Projector_On != 0)
 				{
 					Flag_Projector_On = 0;
-					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 				}	
 		
-				A100_SetFan12Speed(FAN_SPEED_FULL);
-				A100_SetFan34Speed(FAN_SPEED_FULL);
+				SetFan12Speed(FAN_SPEED_FULL);
+				SetFan34Speed(FAN_SPEED_FULL);
 		}
 		else if(ld_temp < 40)
 		{
 				if(Flag_Projector_On != 1)
 				{
 					Flag_Projector_On = 1;
-					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 				}	
-				A100_SetFan12Speed(FAN_SPEED_DEFAULT);
-				A100_SetFan34Speed(FAN_SPEED_DEFAULT);
+				SetFan12Speed(FAN_SPEED_DEFAULT);
+				SetFan34Speed(FAN_SPEED_DEFAULT);
 		}
 #if 0
 		else
@@ -684,11 +572,11 @@ void SysTask5s(void)
 				if(Flag_Projector_On != 1)
 				{
 					Flag_Projector_On = 1;
-					A100_SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 				}	
 				g_fan_value = FAN_SPEED_DEFAULT + 3 * (ld_temp - 40);
-				A100_SetFan12Speed(g_fan_value);
-				A100_SetFan34Speed(g_fan_value);
+				SetFan12Speed(g_fan_value);
+				SetFan34Speed(g_fan_value);
 		}	
 #endif
 	}
