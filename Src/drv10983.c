@@ -124,8 +124,8 @@ void EEROM_Write_10983(uint8_t RegAddr,uint8_t Value)
 {
 		WriteI2C_reg(EECtrl, 0x40);
 		WriteI2C_reg(RegAddr, Value);
-		WriteI2C_reg(DevCtrl, 0xB6);
-		WriteI2C_reg(EECtrl, 0x10);
+		//WriteI2C_reg(DevCtrl, 0xB6);
+		//WriteI2C_reg(EECtrl, 0x10);
 }
 
 uint8_t ReadReg_10983(uint8_t RegAddr)
@@ -143,32 +143,32 @@ void DRV10983_sleep(uint8_t i)
 #define BASE_ADDR  0x20
 uint8_t init_data[] =
 {
-	0x4C,
-	0x19,
-	0x2A,
+	0xCC,
+	0x6,
+	0x2,
 	0x0,
-	0x0,
-	0xFD,
-	0x39,
+	0x58,
+	0xD2,
 	0xFC,
-	0x29,
-	0x88,
+	0xBC,
+	0x65,
+	0xC8,
 	0xD,
-	0xD,	
+	0xC
 };
 
 void ThreePhaseMotorDriver_init(void)
 {
-	uint16_t data = 0, i;
+	uint16_t i;
 	
-		for(i=0;i<sizeof(init_data)/sizeof(uint8_t);i++) {
-			EEROM_Write_10983(BASE_ADDR + i, init_data[i]);	
-			printf("ThreePhaseMotorDriver_init write reg %d->0x%x\r\n",BASE_ADDR+i, init_data[i]);			
-		}
-	
+	for(i=0;i<sizeof(init_data)/sizeof(uint8_t);i++) {
+		EEROM_Write_10983(BASE_ADDR + i, init_data[i]);	
+		//printf("ThreePhaseMotorDriver_init write reg 0x%x->0x%x \r\n",BASE_ADDR+i, init_data[i]);			
+	}
+#if 0
 	for(i=0; i<0x2c; i++) {
-		data = ReadI2C_Byte((uint8_t)i);
-		printf("ThreePhaseMotorDriver_init read reg 0x%x->0x%x\r\n",i, data);
-	
+		uint16_t data = ReadI2C_Byte((uint8_t)i);
+		printf("ThreePhaseMotorDriver_init read reg 0x%x->0x%x \r\n",i, data);
 	} 
+#endif
 }

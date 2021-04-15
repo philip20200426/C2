@@ -413,11 +413,6 @@
               <FilePath>..\Src\LaserDrv.c</FilePath>
             </File>
             <File>
-              <FileName>a5931.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\a5931.c</FilePath>
-            </File>
-            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/main.c</FilePath>
@@ -461,6 +456,11 @@
               <FileName>stm32g0xx_hal_msp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/stm32g0xx_hal_msp.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv10983.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\drv10983.c</FilePath>
             </File>
           </Files>
         </Group>
