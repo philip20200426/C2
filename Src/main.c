@@ -40,6 +40,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define TIME_BASE_TIMER         (50)
+#define TIME_BASE_50US_1MS    	(1000  / TIME_BASE_TIMER)
+#define TIME_BASE_50US_4MS    	(4000  / TIME_BASE_TIMER)
+#define TIME_BASE_50US_8MS    	(8000  / TIME_BASE_TIMER)
 #define TIME_BASE_50US_16MS     (16000  / TIME_BASE_TIMER)
 #define TIME_BASE_50US_24MS     (24000  / TIME_BASE_TIMER)
 #define TIME_BASE_50US_32MS     (32000  / TIME_BASE_TIMER)
@@ -61,6 +64,9 @@
 
 /* USER CODE BEGIN PV */
 volatile uint32_t CounterBaseStep;
+volatile uint32_t Counter1ms = 0;
+volatile uint32_t Counter4ms = 0;
+volatile uint32_t Counter8ms = 0;
 volatile uint32_t Counter16ms = 0;
 volatile uint32_t Counter24ms = 0;
 volatile uint32_t Counter32ms = 0;
@@ -72,6 +78,9 @@ volatile uint32_t Counter5s = 0;
 volatile uint32_t CounterBaseStep = 0;
 volatile uint32_t LedCounter = 0;
 
+volatile _Bool Flag1ms = 0;
+volatile _Bool Flag4ms = 0;
+volatile _Bool Flag8ms = 0;
 volatile _Bool Flag16ms = 0;
 volatile _Bool Flag24ms = 0;
 volatile _Bool Flag32ms = 0;
@@ -80,21 +89,21 @@ volatile _Bool Flag256ms = 0;
 volatile _Bool Flag512ms = 0;
 volatile _Bool Flag1s = 0;
 volatile _Bool Flag5s = 0;
+
 volatile _Bool Flag_Sxrd241_Alarm = 0;
 volatile _Bool Flag_Projector_On = 0;
 //volatile _Bool Flag_FanLock = 0;
 volatile _Bool Flag_LT9211_Int = 0;
 volatile _Bool Flag_FanTest = 0;
-
+volatile _Bool Flag_MatMode = 0;
 
 uint32_t g_fan_value;
-uint8_t gpiopin = 0;
 
 void SysTaskDispatch(void);
 extern void Variables_Init(void);
 extern void ThreePhaseMotorDriver_init(void);
 extern void LcosSetKst(void);
-extern void LcosSetWC(void);
+extern void LcosSetWP(void);
 extern void LcosSetGamma(void);
 extern void LcosSetGain(void);
 extern void LcosSetFlip(void);
@@ -105,6 +114,8 @@ extern HAL_StatusTypeDef SetBootPinMode(void);
 extern void Lcos_CheckRegError(uint8_t local);
 extern 	uint8_t GetFanSpeed(void);
 extern void MotorLimit_DealWith(uint8_t lr);
+extern void UartCommandParser(void);
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -189,6 +200,9 @@ int main(void)
   MX_TIM15_Init();
   MX_I2C2_Init();
   MX_TIM1_Init();
+  MX_TIM16_Init();
+  MX_TIM17_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 	printf("main() Projector_parameter size=%d \r\n",sizeof(struct Projector_parameter));
 
@@ -210,7 +224,7 @@ int main(void)
 	
 	LcosSetFlip();
 	LcosSetKst();
-	LcosSetWC();
+	LcosSetWP();
 	LcosSetGamma();
 	LcosSetGain();
 	//LcosInitWec();
@@ -218,14 +232,6 @@ int main(void)
 	LT89121_Reset();
 	SetBootPinMode();
 	ReceiveUart1Data();
-#if 1	
-  /*## Start the Input Capture in interrupt mode ##########################*/
-  if(HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1) != HAL_OK)
-  {
-    /* Starting Error */
-    Error_Handler();
-  }	
-#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -353,6 +359,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			{
 				LedCounter = 0xFFFFFFFF;
 			}
+	
+			if(TIME_BASE_50US_1MS == ++Counter1ms)
+  	  {
+				Flag1ms = 1;
+				Counter1ms = 0;
+  	  }	
+			
+			if(TIME_BASE_50US_4MS == ++Counter4ms)
+  	  {
+				Flag4ms = 1;
+				Counter4ms = 0;
+  	  }	
+			
+			if(TIME_BASE_50US_8MS == ++Counter8ms)
+  	  {
+				Flag8ms = 1;
+				Counter8ms = 0;
+  	  }	
+			
 			if(TIME_BASE_50US_16MS == ++Counter16ms)
   	  {
 				Flag16ms = 1;
@@ -411,6 +436,20 @@ void SysTask0ms(void)
 
 }
 
+void SysTask1ms(void)
+{
+
+}
+
+void SysTask4ms(void)
+{
+	UartCommandParser();
+}
+void SysTask8ms(void)
+{
+
+}
+
 void SysTask16ms(void)
 {
 
@@ -429,9 +468,6 @@ void SysTask512ms(void)
 void SysTask1s(void)
 {
   HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
-  //HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-	//uint8_t val  = HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_8);
-	//printf("PA8:%d \r\n",val);
 }
 
 
@@ -586,7 +622,22 @@ void SysTask5s(void)
 void SysTaskDispatch(void)
 {
     SysTask0ms();  	
-
+		if(Flag1ms)
+		{
+		   Flag1ms = 0;
+		   SysTask1ms();
+		}
+		if(Flag4ms)
+		{
+		   Flag4ms = 0;
+		   SysTask4ms();
+		}
+		if(Flag8ms)
+		{
+		   Flag8ms = 0;
+		   SysTask8ms();
+		}
+		
 		if(Flag16ms)
 		{
 		   Flag16ms = 0;

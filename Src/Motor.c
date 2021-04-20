@@ -4,7 +4,7 @@
 #include "string.h"
 #include "serial_communication.h"
 
-extern void Uart_SendResponse(uint16_t cmd, uint8_t result);
+extern void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
 void MotorStop_UartRes(uint8_t result);
 
 #define BONGINGNUM  300
@@ -152,7 +152,7 @@ void Motor_Stop(void)
 void MotorStop_UartRes(uint8_t result)
 {
 	Motor_Stop();
-	Uart_SendResponse(SET_MOTOR_START, result);
+	Uart_Send_Response(CMD_SET_FOCUSMOTOR, &result, 1);
 }
 
 
@@ -282,11 +282,12 @@ void MotorStop_UartRes(uint8_t result)
 	Motor_Stop();
 	gStepper.count_steps = 0;
 	
-	Uart_SendResponse(SET_MOTOR_START, result);
+	Uart_Send_Response(CMD_SET_FOCUSMOTOR, &result, 1);
 }
 
 uint8_t Motor_start(uint8_t dir, uint16_t steps)
 {	
+	printf("Motor_start:%d dir:%d\r\n", steps, dir);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, (GPIO_PinState)!dir);
 	HAL_Delay(1);
 

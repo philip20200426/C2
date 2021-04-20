@@ -24,12 +24,26 @@
 extern uint16_t GetLd_RT_Temp(uint16_t adc_val);
 extern uint16_t GetLcos_RT_Temp(uint16_t adc_val);
 extern uint8_t ReadReg_10983(uint8_t RegAddr);
+extern uint8_t GetRGBCurrent(uint8_t rgb);
+
+void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
+uint8_t GetFan12Speed(void);
+uint8_t GetFan34Speed(void);
+uint8_t GetFan5Speed(void);
+uint8_t GetThreePMotorSpeed(void);
 /* Private variables ---------------------------------------------------------*/
 uint16_t g_fan12_speed,g_fan34_speed,g_fan5_speed;
 struct Projector_parameter  g_projector_para;
-struct asu_date asu_rec_data;
+
 volatile uint8_t UartReceiveRxBuffer[UART_BUFFER_MAX_SIZE] = {0};
+volatile uint8_t UartTempBuffer[UART_BUFFER_MAX_SIZE] = {0};
+volatile uint8_t UartCommandBuffer[UART_BUFFER_MAX_SIZE] = {0};
 volatile uint8_t UartReceiveLength = 0;
+volatile uint8_t UartTempLength = 0;
+volatile uint8_t UartCommandLength = 0;
+/* sony tools  ---------------------------------------------------------*/
+struct asu_date asu_rec_data;
+uint8_t r_regData[2];
 int  data_len = 0;
 char receive_buffer[40];
 char R_0[15] = {114,32,48,13,13,10,32,79,75,32,50,48,66,13,10};
@@ -41,22 +55,10 @@ char OK_3[10] = {13,13,10,32,79,75,32,50,13,10};
 char OK_7[10] = {13,13,10,32,79,75,32,54,13,10};
 char flag_0 = 0;
 
-uint8_t wc_temp[438] = {0};
-struct Projector_WC wc_data_temp[4];
-uint8_t g_red_value,g_green_value, g_blue_value;
-/*just for debug in bringup*/
-uint8_t a[20] = {0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55};
-uint8_t b[20] = {0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66};
-uint8_t c[20] = {0xee,0xee,0xee,0xee,0xee,0xee,0xee,0xee,0xee,0xee};
-#ifdef CONFIG_KST_INDEX
-#include "kst.h"
-#endif
-extern uint32_t g_fan_value;
-extern uint8_t gpiopin;
-extern uint16_t g_RedCurrent;
-extern uint16_t g_GreenCurrent;
-extern uint16_t g_BlueCurrent;
 extern volatile _Bool Flag_FanTest;
+extern volatile _Bool Flag_MatMode;
+extern uint16_t g_RGBCurrent[3];
+
 /* Private function prototypes -----------------------------------------------*/
 unsigned char CharToHex(unsigned char bHex)
 {
@@ -274,6 +276,8 @@ void show_data(struct asu_date *data)
 	if(data->reg_value >=0x1000 && data->reg_value <=0xffff)
 		data_len = 4;
 }
+
+
 /* flash ------------------------------------------------------------------*/
 /**
   * @brief  Gets the page of a given address
@@ -299,11 +303,18 @@ void GetParameter(void)
 		Projector_Config[i] = *(__IO uint32_t*) Address	;
 		Address += 4;
 	}
-	
+#if 0	
+	printf("current:0x%x \r\n",g_projector_para.current.valid);
+	printf("rgb:0x%x 0x%x 0x%x \r\n",g_projector_para.current.r, g_projector_para.current.g, g_projector_para.current.b);
+	printf("kst:0x%x \r\n",g_projector_para.kst.valid);	
+	printf("flip:0x%x \r\n",g_projector_para.flip.valid);
+	printf("gama:0x%x \r\n",g_projector_para.gama.valid);
+	printf("wp:0x%x \r\n",g_projector_para.wp.valid);	
+#endif
 	return;
 }
 
-void setparameter(struct Projector_parameter  *g_projector_parameter )
+void SetParameter(struct Projector_parameter  *g_projector_parameter )
 {
 	uint32_t FirstPage = 0, NbOfPages = 0;
 	uint32_t Address = 0, PageError = 0;
@@ -330,7 +341,7 @@ void setparameter(struct Projector_parameter  *g_projector_parameter )
   EraseInitStruct.Page        = FirstPage;
   EraseInitStruct.NbPages     = NbOfPages;	
 	
-	printf("setparameter FirstPage[%d] NbOfPages[%d]\r\n",FirstPage, NbOfPages);
+	printf("SetParameter FirstPage[%d] NbOfPages[%d]\r\n",FirstPage, NbOfPages);
  
   /* Note: If an erase operation in Flash memory also concerns data in the data or instruction cache,
      you have to make sure that these data are rewritten before they are accessed during code
@@ -422,6 +433,7 @@ HAL_StatusTypeDef SetBootPinMode(void)
 	
 	return HAL_OK;
 }
+
 /* usart ------------------------------------------------------------------*/
 #ifdef __GUNC__
   #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -435,998 +447,349 @@ PUTCHAR_PROTOTYPE
 	return ch;
 }
 
-void Uart_SendResponse(uint16_t cmd, uint8_t result)
+unsigned short checksum(unsigned char* pdata, unsigned short size)
 {
-	struct Projector_date res;
+	unsigned short sum = 0;
 
-	res.start_head = UART_COMMAND_HEAD;
-	res.end_tail = UART_COMMAND_END;
-	res.command = cmd;
-	res.data0 = result;
-	res.data1 = 0;
-	res.data2 = 0;
-	res.data3 = 0;
-	res.data4 = 0;
-	res.data5 = 0;
-	res.checksum = (res.command + res.data0 +res.data1 + res.data2 + res.data3 + res.data4 + res.data5) % 0x1000;
-	HAL_UART_Transmit(&huart1, (uint8_t *)&res,  sizeof(struct Projector_date), 100);
-	//printf("Uart_SendResponse:ressult=%d checksum=%d \r\n",res.data0,res.checksum);
+	for (int i = 0; i < size; i++)
+		sum += *pdata++;
+
+	return sum;
+}
+
+
+void Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
+{
+		uint8_t ret;
+	
+		if(count == 1)
+		{
+			if(cmd == CMD_WRITE_SXMB241_REG)			
+				ret = I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg, val_buf[0]);
+			else
+				ret = I2cWriteCxd3554(CXD3554_I2C_ADDRESS, reg, val_buf[0]);
+		}
+		else
+			
+		{
+			if(cmd == CMD_WRITE_SXMB241_REG)
+			{				
+				for(uint8_t i = 0; i < count; i++)
+				{
+					ret = I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg+i, val_buf[i]);
+				}
+			}
+			else
+				ret = I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, reg, val_buf, count);
+		}
+		
+		if(ret != HAL_OK)
+			Uart_Send_Response(CMD_ERROR, NULL, 0);	
+		else		
+			Uart_Send_Response(cmd, NULL, 0);		
+}
+
+void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
+{
+		uint8_t ret;
+		uint8_t *pBuf;
+#if 0	
+		if(count == 1)
+		{
+			if(cmd == CMD_READ_SXMB241_REG)
+				ret = I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg, &val_buf[0]);
+			else
+				ret = I2cReadCxd3554(CXD3554_I2C_ADDRESS, reg, &val_buf[0]);
+		}
+		else
+#endif			
+		{
+			if(cmd == CMD_READ_SXMB241_REG)
+			{
+				for(uint8_t i = 0; i < count; i++)
+				{
+					ret = I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg+i, &val_buf[i]);
+				}	
+				pBuf = val_buf;
+			}
+			else
+			{
+				ret = I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, reg, val_buf, count + 1); //3554 discard one byte
+				pBuf = &val_buf[1];
+			}
+		}
+		
+		if(ret != HAL_OK)
+			Uart_Send_Response(CMD_ERROR, NULL, 0);	
+		else
+			Uart_Send_Response(cmd, pBuf, count);	
+}	
+	
+void Uart_Save_Parameter(uint8_t type)
+{
+		switch(type)
+		{
+			case PARA_CURRENT:
+			{
+				g_projector_para.current.valid = PARAMETER_VALID;
+				g_projector_para.current.r = g_RGBCurrent[0];
+				g_projector_para.current.g = g_RGBCurrent[1];
+				g_projector_para.current.b = g_RGBCurrent[2];				
+				break;
+			}
+			
+			case PARA_FLIP:
+			{
+				g_projector_para.flip.valid = PARAMETER_VALID;
+				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x0090, g_projector_para.flip.h, 2);
+				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x0091, g_projector_para.flip.v, 2);
+				break;
+			}
+
+			case PARA_KST:
+			{
+				g_projector_para.kst.valid = PARAMETER_VALID;
+				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x1A49, g_projector_para.kst.val, KST_REG_NUM + 1);
+#if 0
+				printf("set kst:");
+				for(uint8_t i = 1; i < KST_REG_NUM+1; i++)
+				{
+					printf("0x%x ",g_projector_para.kst.val[i]);
+				}	
+				printf("\r\n");
+#endif
+				break;
+			}	
+			
+			case PARA_GAMA:
+			{
+				g_projector_para.gama.valid = PARAMETER_VALID;
+				for(uint8_t i = 0; i < GAMA_REG_NUM; i++) {
+					I2cReadSxmb241(SXRD241_I2C_ADDRESS, 0x58 + i, &g_projector_para.gama.val[i]);
+				}
+				break;
+			}		
+			
+			case PARA_WP:
+			{
+				g_projector_para.wp.valid = PARAMETER_VALID;
+				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x3500, g_projector_para.wp.val, WP_REG_NUM + 1);
+				break;
+			}		
+
+			
+		default:
+			break;
+		}
+		
+		SetParameter(&g_projector_para);	
+}
+
+void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
+{
+	uint8_t buf[UART_BUFFER_MAX_SIZE];
+  uint16_t reg, reg_count;
+	uint16_t check;
+/*-------------------------------------------------------------------------------------------*/
+	struct PACKAGE_HEAD *	head = ( struct PACKAGE_HEAD *)(pRx);	
+	memset(buf, 0, UART_BUFFER_MAX_SIZE);
+	if (head->flag != COMM_FLAG)
+	{
+		Uart_Send_Response(CMD_ERROR, NULL, 0);	
+		printf(" flag error!: 0x%x\n\r", head->flag);		
+		return;
+	}
+	
+	check = checksum((uint8_t *)&pRx[PACKAGE_DATA_BASE], head->size);
+	if (head->check != check)
+	{
+		Uart_Send_Response(CMD_ERROR, NULL, 0);	
+		printf(" checksum error!: 0x%x cal_sum:0x%x \n\r", head->check, check);		
+		return;
+	}
+/*-------------------------------------------------------------------------------------------*/	
+	switch(head->command)
+	{	
+		case CMD_ECHO:
+		{
+			Uart_Send_Response(head->command, &pRx[PACKAGE_DATA_BASE], head->size);
+			break;
+		}
+		
+		case CMD_WRITE_CXD3554_REG:		
+		case CMD_WRITE_SXMB241_REG:
+		{
+			reg = (pRx[PACKAGE_DATA_BASE+1] << 8) + pRx[PACKAGE_DATA_BASE];
+			reg_count = head->size - 2;
+			Uart_Cmd_WriteReg(head->command, reg, (uint8_t *)&pRx[PACKAGE_DATA_BASE + 2], reg_count);
+			break;
+		}
+		
+		case CMD_READ_CXD3554_REG:
+		case CMD_READ_SXMB241_REG:
+		{
+			reg = (pRx[PACKAGE_DATA_BASE+1] << 8) + pRx[PACKAGE_DATA_BASE];			
+			reg_count = pRx[PACKAGE_DATA_BASE+2];
+			Uart_Cmd_ReadReg(head->command, reg, buf, reg_count);
+			break;
+		}	
+		
+		case CMD_SET_CURRENTS:
+		{
+			uint8_t ret = SetRedCurrent(pRx[PACKAGE_DATA_BASE]);
+			if(ret != HAL_OK)
+			{				
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+				break;
+			}
+			ret = SetGreenCurrent(pRx[PACKAGE_DATA_BASE + 1]);
+			if(ret != HAL_OK)
+			{				
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+				break;
+			}
+			ret = SetBlueCurrent(pRx[PACKAGE_DATA_BASE + 2]);
+			if(ret != HAL_OK)
+			{				
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+				break;
+			}
+			
+			Uart_Send_Response(head->command, NULL, 0);
+			break;			
+		}
+
+		case CMD_SET_FANS:
+		{
+			Flag_FanTest = 1;
+			SetFan12Speed(pRx[PACKAGE_DATA_BASE]);
+			SetFan34Speed(pRx[PACKAGE_DATA_BASE]);
+			SetFan5Speed(pRx[PACKAGE_DATA_BASE + 1]);			
+			Uart_Send_Response(head->command, NULL, 0);
+			break;			
+		}
+		
+		case CMD_SET_FOCUSMOTOR:
+		{
+			uint16_t steps = (pRx[PACKAGE_DATA_BASE + 2] << 8) + pRx[PACKAGE_DATA_BASE + 1];
+			Motor_start(pRx[PACKAGE_DATA_BASE], steps);
+			break;			
+		}	
+		
+		case CMD_SAVE_PARAMRTER:
+		{
+			Uart_Save_Parameter(pRx[PACKAGE_DATA_BASE]);
+			Uart_Send_Response(head->command, NULL, 0);
+			break;			
+		}
+		case CMD_GET_VERSION:
+		{
+			buf[0] = VERSION0;
+			buf[1] = VERSION1;
+			buf[2] = VERSION2;			
+			Uart_Send_Response(head->command, buf, 3);
+			break;			
+		}
+
+		case CMD_GET_TEMPS:
+		{
+			uint16_t ld_adc = 0, lcos_adc = 0;
+			uint16_t adc_val[3];
+
+			ld_adc = adc_GetAdcVal(adc_val);
+			lcos_adc = adc_val[2];
+			
+			buf[0] = GetLd_RT_Temp(ld_adc); //ld temp
+			buf[1] = GetLcos_RT_Temp(lcos_adc); //lcos temp
+			Uart_Send_Response(head->command, buf, 2);	
+			break;			
+		}
+
+		case CMD_GET_FANS:
+		{	
+			buf[0] =  g_fan12_speed;
+			//buf[1] =  g_fan34_speed;
+			buf[1] =  g_fan5_speed;
+			GetFan5Speed();
+			GetFan34Speed();
+			GetThreePMotorSpeed();
+			Uart_Send_Response(head->command, buf, 2);			
+			break;			
+		}
+
+		case CMD_GET_CURRENTS:
+		{
+			buf[0] =  GetRGBCurrent(0);
+			buf[1] =  GetRGBCurrent(1);
+			buf[2] =  GetRGBCurrent(2);
+			Uart_Send_Response(head->command, buf, 3);
+			break;			
+		}
+
+		case CMD_ENTER_MAT:
+		{
+			Flag_MatMode = 1;
+			Uart_Send_Response(head->command, NULL, 0);
+			break;				
+		}	
+		
+		default:
+			break;
+	}	
+}
+
+void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size )
+{
+	struct PACKAGE_HEAD head;
+
+	head.flag = COMM_FLAG;
+	head.command = command;
+	head.size = size;
+	head.check = 0;
+	head.check = checksum(data, size);		
+#if 0
+	printf("\r\n send head:");	
+	uint8_t* p = (uint8_t* )&head;
+	for(uint8_t i=0;i<sizeof(struct PACKAGE_HEAD);i++)
+	{
+		printf("0x%x ",p[i]);
+	}
+	printf("\r\n");
+#endif	
+	
+	HAL_UART_Transmit(&huart1, (uint8_t*)&head,  sizeof(struct PACKAGE_HEAD), 100);
+	HAL_UART_Transmit(&huart1, data,  size, 100);
+	
+#if 0	
+	printf("\r\n send data:");	
+	for(uint8_t i=0;i<size;i++)
+	{
+		printf("0x%02x ",data[i]);
+	}
+	printf("\r\n");
+#endif
 }
 
 void UartCmdHandler(uint8_t *pRx,uint8_t length)
 {
-	uint8_t I2cBuf;
 	I2C_HandleTypeDef hi2c;
   uint16_t i;
-	uint16_t  checksum;
-	uint16_t  MemAddSize;
-	uint16_t  value0;
 
-	struct Projector_date *recevie_data;
-	struct Projector_CCT  *recevie_cct_data;
-	struct Projector_Gama *recevie_gamma_data;
-	struct Projector_wb_date *recevie_wb_data;
-#if 0
+#if 1
 	printf("\n\r UartCmdHandler %d Bytes:",length);
 	for(uint16_t i = 0; i < length; i++)
 	{
 		printf(" 0x%02X", pRx[i]);
 	}
 	printf("\n\r");
-#endif	
-	if(pRx[0] == SET_TUNING_PARAMETER)
-	{
-		recevie_cct_data = (struct Projector_CCT *)(pRx);
-		memcpy(&(g_projector_para.projector_tuning),recevie_cct_data,sizeof(struct Projector_CCT));
-		HAL_UART_Transmit(&huart1, b,  20, 100);
-		return;
-	}
-	else if(pRx[0] == SET_WC_PARAMETER)
-	{
-			int i;
-			recevie_wb_data = ( struct Projector_wb_date *)(pRx);
-			if((recevie_wb_data->direction)<4)
-			{
-				wc_data_temp[recevie_wb_data->direction].power_num = recevie_wb_data->power_num;
-				wc_data_temp[recevie_wb_data->direction].gain = recevie_wb_data->gain;
-				wc_data_temp[recevie_wb_data->direction].offset = recevie_wb_data->offset;
-				wc_data_temp[recevie_wb_data->direction].l = recevie_wb_data->l;
-			}
-			if((recevie_wb_data->direction)==0)
-			{
-				for(i=0;i<132;i++)
-				{
-						wc_temp[i+0xA0] = recevie_wb_data->reg[i];
-				}
-			}
-			else if ((recevie_wb_data->direction)==1)
-			{
-				for(i=0;i<78;i++)
-				{
-						wc_temp[i] = recevie_wb_data->reg[i];
-				}
-			}
-			else if ((recevie_wb_data->direction)==2)
-			{
-				for(i=0;i<132;i++)
-				{
-						wc_temp[i+0x130] = recevie_wb_data->reg[i];
-				}
-			}
-			else if ((recevie_wb_data->direction)==3)
-			{
-				for(i=0;i<78;i++)
-				{
-						wc_temp[i+0x50] = recevie_wb_data->reg[i];
-				}
-			}
-			
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40,0x6c);
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A42,0x70);		
-			for(i=0; i<438; i++)
-			{
-					I2cWriteCxd3554(CXD3554_I2C_ADDRESS,0x3500 +i , wc_temp[i]);
-			}
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40,0x6d);
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A42,0x30);
-			HAL_UART_Transmit(&huart1, c,  20, 100);
-			return;
-	}	
-	else if(pRx[0] == SET_GAMA_PARAMETER)
-	{
-		recevie_gamma_data = (struct Projector_Gama *)(pRx);
-		memcpy(&(g_projector_para.gamma_data),recevie_gamma_data,sizeof(struct Projector_Gama));
-		HAL_UART_Transmit(&huart1, a,  20, 100);
-		return;
-	}
-	else if(pRx[0] == UART_COMMAND_HEAD)
-	{
-	//cal checksum here
-		recevie_data = (struct Projector_date *)(pRx);
-		checksum = (recevie_data->command + recevie_data->data0 + recevie_data->data1 + recevie_data->data2 + recevie_data->data3 + recevie_data->data4+ recevie_data->data5) % 0x1000;
-	//check STX & ETX
-		if((UART_COMMAND_HEAD != recevie_data->start_head) || (UART_COMMAND_END != recevie_data->end_tail))
-		{
-			recevie_data->data5 = 101;
-			HAL_UART_Transmit(&huart1, (uint8_t *)recevie_data,  sizeof(struct Projector_date), 100);
-		}
-
-		//checksum error
-		if(checksum != recevie_data->checksum)
-		{
-			if(recevie_data->checksum != 0xffff) //universual checksum
-			{
-				recevie_data->data4 = checksum;
-				recevie_data->data5 = 100;
-				HAL_UART_Transmit(&huart1, (uint8_t *)recevie_data,  sizeof(struct Projector_date), 100);
-				return;
-			}
-		}	
-			switch(recevie_data->command)
-			{		
-			/*		
-					case SET_LED:
-						switch(recevie_data->data0)
-						{
-							case SET_LED_RRGGBBGG:
-								Set_LED_RRGGBBGG();
-							break;
-
-							case SET_LED_RRGGRRBB:
-								Set_LED_RRGGRRBB();
-							break;
-
-							case SET_LED_RRGGBBWW:
-								Set_LED_RRBBGGBB();
-							break;
-
-							case SET_LED_RRBBGGBB:
-								Set_LED_RRBBGGBB();
-							break;
-						}
-					break;
-			*/
-					case GET_OE_FAN_SPEED:
-						recevie_data->data0 = g_fan12_speed;	
-						recevie_data->data1 = g_fan34_speed;
-						recevie_data->data2 = g_fan5_speed;					
-					break;
-						
-					case SET_OE_FAN_SPEED:
-						if(recevie_data->data0 == 0)
-						{
-							SetFan12Speed(recevie_data->data1);
-							SetFan34Speed(recevie_data->data1);
-						}
-						else if(recevie_data->data0 == 1)	
-							SetFan5Speed(recevie_data->data1);	
-						else	
-						{
-							SetFan12Speed(recevie_data->data1);
-							SetFan34Speed(recevie_data->data1);
-							SetFan5Speed(recevie_data->data1);
-						}
-						
-						Flag_FanTest = 1;
-					break;
-
-					case SET_CURRENT_MODE:
-						if(recevie_data->data0<3 && g_projector_para.projector_tuning.tuning_valid == 1 )
-						{
-								uint16_t Red_Current = 0x0000;
-								uint16_t Green_Current = 0x0000;
-								uint16_t Blue_Current = 0x0000;
-							
-								g_projector_para.projector_tuning.briness_index = recevie_data->data0;
-								Red_Current 	= g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].red_current ;
-								Green_Current = g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].green_current ;
-								Blue_Current 	= g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].blue_current ;
-								SetRedCurrent(Red_Current);
-								SetGreenCurrent(Green_Current);
-								SetBlueCurrent(Blue_Current);
-
-								recevie_data->data0 = g_projector_para.projector_tuning.cct_index;
-								recevie_data->data1 = g_projector_para.projector_tuning.briness_index;
-								recevie_data->data3 = Red_Current;
-								recevie_data->data4 = Green_Current;
-								recevie_data->data5 = Blue_Current;
-						}
-						else
-						{
-								recevie_data->data0 = 257;
-						}
-					break;
-
-					case SET_CCT_MODE:
-					{
-							if(recevie_data->data0<3  && g_projector_para.projector_tuning.tuning_valid == 1 )
-							{
-								uint16_t Red_Current = 0x0000;
-								uint16_t Green_Current = 0x0000;
-								uint16_t Blue_Current = 0x0000;
-								g_projector_para.projector_tuning.cct_index = recevie_data->data0;
-								Red_Current 	= g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].red_current ;
-								Green_Current = g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].green_current ;
-								Blue_Current 	= g_projector_para.projector_tuning.cct[g_projector_para.projector_tuning.cct_index].briness[g_projector_para.projector_tuning.briness_index].blue_current ;
-								SetRedCurrent(Red_Current);
-								SetGreenCurrent(Green_Current);
-								SetBlueCurrent(Blue_Current);
-								for(i=0; i<88; i++) {//write gamma
-									I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, g_projector_para.gamma_data.gamma_reg[recevie_data->data0 * 88 + i]);
-								}
-								recevie_data->data0 = g_projector_para.projector_tuning.cct_index;
-								recevie_data->data1 = g_projector_para.projector_tuning.briness_index;
-								recevie_data->data3 = Red_Current;
-								recevie_data->data4 = Green_Current;
-								recevie_data->data5 = Blue_Current;
-							}
-							else
-							{
-								recevie_data->data0 = 256;
-							}
-					}
-					break;
-
-					case SET_HAPTIC_START:
-
-					break;
-
-					case I2C_WRITE:
-					{
-							if(recevie_data->data0 == 1)
-							{
-								hi2c = hi2c1;
-							}
-							else if(recevie_data->data0 == 2)
-							{
-								hi2c = hi2c2;
-							}
-							else
-							{
-								HAL_UART_Transmit(&huart1, (uint8_t *)c,  16, 100);
-							}
-							if(recevie_data->data1 == CXD3554_I2C_ADDRESS)
-							{
-								MemAddSize =	I2C_MEMADD_SIZE_16BIT;
-							}
-							else
-							{
-								MemAddSize = I2C_MEMADD_SIZE_8BIT;
-							}
-							HAL_I2C_Mem_Write(&hi2c,
-																recevie_data->data1,
-																recevie_data->data2,
-																MemAddSize,
-																(uint8_t *)(&recevie_data->data3),
-																1,
-																300);
-					}
-					break;
-					case I2C_READ:
-					{
-							if(recevie_data->data0 == 1)
-							{
-								hi2c = hi2c1;
-							}
-							else if(recevie_data->data0 == 2)
-							{
-								hi2c = hi2c2;
-							}
-							else
-							{
-								HAL_UART_Transmit(&huart1, (uint8_t *)c,  16, 100);
-							}
-							if(recevie_data->data1 == CXD3554_I2C_ADDRESS)
-								MemAddSize =	I2C_MEMADD_SIZE_16BIT;
-							else
-								MemAddSize = I2C_MEMADD_SIZE_8BIT;
-
-							HAL_I2C_Mem_Read(&hi2c,
-																recevie_data->data1,
-																recevie_data->data2,
-																MemAddSize,
-																&I2cBuf,
-																1,
-																1000);
-							HAL_I2C_Mem_Read(&hi2c,
-																recevie_data->data1,
-																recevie_data->data2,
-																MemAddSize,
-																&I2cBuf,
-																1,
-																1000);
-							recevie_data->data3 = I2cBuf;
-					}
-				case SET_INT_PATTERN_TYPE:
-					switch(recevie_data->data0)
-					{
-								case INTERNAL_PATTERN_RASTER:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_RASTER);
-								break;
-
-								case INTERNAL_PATTERN_WINDOW:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_WINDOW);
-								break;
-
-								case INTERNAL_PATTERN_VERTICAL_stripe:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_VERTICAL_stripe);
-								break;
-
-								case INTERNAL_PATTERN_HORIZONTAL_STRIPE:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_HORIZONTAL_STRIPE);
-								break;
-
-								case INTERNAL_PATTERN_CROSSHATCH:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_CROSSHATCH);
-								break;
-
-								case INTERNAL_PATTERN_DOT:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_DOT);
-								break;
-
-								case INTERNAL_PATTERN_CROSSHATCH_DOT:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_CROSSHATCH_DOT);
-								break;
-
-								case INTERNAL_PATTERN_HRAMP:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_HRAMP);
-								 break;
-
-								case INTERNAL_PATTERN_VRAMP:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_VRAMP);
-								 break;
-
-								case INTERNAL_PATTERN_FRAME:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_FRAME);
-								 break;
-
-								case INTERNAL_PATTERN_CHECKBOX:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xF3);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, INTERNAL_PATTERN_CHECKBOX);
-								 break;
-
-								case INTERNAL_PATTERN_COLORBAR:
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0x01);
-									I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, 0x71);
-								 break;
-							}
-					break;
-
-					case SET_SOURCE_INPUT:
-					switch(recevie_data->data0)
-					{
-						case SOURCE_TEST_PATTERN1:
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0x00);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, 0x76);
-						break;
-
-						case SOURCE_TEST_PATTERN2:
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0x00);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, 0x71);//colorbar
-						break;
-
-						case SOURCE_CUSTOMER_INPUT:								
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0x00);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, (0x70 + recevie_data->data1));
-						break;
-						
-						case SOURCE_EXTERNAL_INPUT:
-						default:
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0x00);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, 0x00);
-						break;
-					}
-					
-					break;
-
-					case GET_VERSION:
-						recevie_data->data0 = VERSION0;
-						recevie_data->data1 = VERSION1;
-						recevie_data->data2 = VERSION2;
-					break;
-#ifdef CONFIG_KST_INDEX
-					case SET_KST:
-						if(recevie_data->data0 < KST_DEGREE_NUM)
-						{
-							uint16_t index;
-							g_projector_para.keystone = recevie_data->data0;
-							index = g_projector_para.keystone * KST_DEGREE_NUM + g_projector_para.side_keystone;
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40, 0x6d);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A41, 0x68);
-							for(i = 0; i<KST_REG_NUM ;i++)
-							{
-								I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A49 + i, g_kst[index][i]);
-							}
-							recevie_data->data3 = index;
-						}
-						else
-						{
-							recevie_data->data3 = 101;
-						}
-
-						g_projector_para.keystone_valid = 1;
-
-					break;
-
-					case SET_SIDE_KST:
-						if(recevie_data->data0 < KST_DEGREE_NUM)
-						{
-							uint16_t index;
-							g_projector_para.side_keystone = recevie_data->data0;
-							index = g_projector_para.keystone * KST_DEGREE_NUM + g_projector_para.side_keystone;
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40, 0x6d);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A41, 0x68);
-							for(i = 0; i<KST_REG_NUM ;i++)
-							{
-								I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A49 + i, g_kst[index][i]);
-							}
-							recevie_data->data3 = index;
-						}
-						else
-						{
-							recevie_data->data3 = 132;
-						}
-						g_projector_para.side_keystone_valid = 1;
-					break;
-
-					case GET_KST:
-						recevie_data->data0 = g_projector_para.keystone;
-					break;
-
-					case GET_SIDE_KST:
-						recevie_data->data0 = g_projector_para.side_keystone;
-					break;
-					
-#else
-					case SET_KST:
-						printf("data0[%d] \r\n",recevie_data->data0);
-						if(recevie_data->data0 == 0) {
-							g_projector_para.kst_val[0] = (uint8_t)(recevie_data->data1 & 0xff);
-							g_projector_para.kst_val[1] = (uint8_t)(recevie_data->data1 >> 8);
-							g_projector_para.kst_val[2] = (uint8_t)(recevie_data->data2 & 0xff);
-							g_projector_para.kst_val[3] = (uint8_t)(recevie_data->data2 >> 8);
-							g_projector_para.kst_val[4] = (uint8_t)(recevie_data->data3 & 0xff);
-							g_projector_para.kst_val[5] = (uint8_t)(recevie_data->data3 >> 8);
-							g_projector_para.kst_val[6] = (uint8_t)(recevie_data->data4 & 0xff);
-							g_projector_para.kst_val[7] = (uint8_t)(recevie_data->data4 >> 8);							
-						}
-						else if(recevie_data->data0 == 1) {
-							g_projector_para.kst_val[8] = (uint8_t)(recevie_data->data1 & 0xff);
-							g_projector_para.kst_val[9] = (uint8_t)(recevie_data->data1 >> 8);
-							g_projector_para.kst_val[10] = (uint8_t)(recevie_data->data2 & 0xff);
-							g_projector_para.kst_val[11] = (uint8_t)(recevie_data->data2 >> 8);
-							g_projector_para.kst_val[12] = (uint8_t)(recevie_data->data3 & 0xff);
-							g_projector_para.kst_val[13] = (uint8_t)(recevie_data->data3 >> 8);
-							g_projector_para.kst_val[14] = (uint8_t)(recevie_data->data4 & 0xff);
-							g_projector_para.kst_val[15] = (uint8_t)(recevie_data->data4 >> 8);
-
-							g_projector_para.kst_index = recevie_data->data5;
-							g_projector_para.kst_valid = 1;				
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40, 0x6d);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A41, 0x68);							
-							for(i = 0; i < 16 ;i++)
-							{
-								I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A49 + i, g_projector_para.kst_val[i]);
-								//printf("kst_val[%d]: 0x%x \r\n",i, g_projector_para.kst_val[i]);
-							}
-						}
-					break;
-					
-					case GET_KST:
-						recevie_data->data0 = g_projector_para.kst_index;
-					break;
 #endif
-					case GET_CURRENT_MODE:
-						recevie_data->data0 = g_projector_para.projector_tuning.briness_index;
-					break;
-
-					case GET_CCT_MODE:
-						recevie_data->data0 = g_projector_para.projector_tuning.cct_index;
-					break;
-
-					case SET_HORIZONTAL:
-						I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, (H_FLIP_Mode)recevie_data->data0);
-						g_projector_para.hflip = (H_FLIP_Mode)recevie_data->data0;
-						g_projector_para.hflip_valid = 0x01;
-					break;
-
-					case SET_VERTICAL:
-						I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, (V_FLIP_Mode)recevie_data->data0);
-						g_projector_para.vflip = (V_FLIP_Mode)recevie_data->data0;
-						g_projector_para.vflip_valid = 0x01;
-					break;
-
-					case GET_HORIZONTAL:
-						recevie_data->data0 = g_projector_para.hflip;
-					break;
-
-					case GET_VERTICAL:
-						recevie_data->data0 = g_projector_para.vflip;
-					break;
-
-					case SET_LED_INPUT:
-					switch((Led_type)recevie_data->data0)
-					{
-								case RED_LED_ON:
-									SetRedCurrent(recevie_data->data1);
-									SetGreenCurrent(0);
-									SetBlueCurrent(0);
-									recevie_data->data3 = 102;
-								break;			
-
-								case RED_LED1_ON:
-
-									recevie_data->data3 = 103;
-								break;
-
-								case RED_LED2_ON:
-
-									recevie_data->data3 = 104;
-								break;
-
-								case GREEN_LED_ON:
-									SetRedCurrent(0);
-									SetGreenCurrent(recevie_data->data1);
-									SetBlueCurrent(0);
-									recevie_data->data3 = 105;
-								break;
-
-								case GREEN_LED1_ON:
-
-									recevie_data->data3 = 106;
-								break;
-
-								case GREEN_LED2_ON:
-
-									recevie_data->data3 = 107;
-								break;
-
-								case BLUE_LED1_ON:
-
-								break;
-
-								case BLUE_LED_ON:
-									SetRedCurrent(0);
-									SetGreenCurrent(0);
-									SetBlueCurrent(recevie_data->data1);
-									recevie_data->data3 = 108;
-								break;
-
-								case LED_ON:
-									g_projector_para.red_current = recevie_data->data1;
-									g_projector_para.green_current = recevie_data->data2;
-									g_projector_para.blue_current = recevie_data->data3;
-									g_projector_para.brightness = 0x00;
-									g_projector_para.current_valid = 0x01;
-									g_projector_para.projector_tuning.tuning_valid = 0;
-									
-									printf("set red:%d green:%d blue:%d \r\n",recevie_data->data1,recevie_data->data2,recevie_data->data3);
-									SetRedCurrent(recevie_data->data1);
-									SetGreenCurrent(recevie_data->data2);
-									SetBlueCurrent(recevie_data->data3);
-								
-									recevie_data->data0 =  TPL1401_ReadI2C_Byte(0x90, 0x21) >> 4;//g_RedCurrent;
-									recevie_data->data1 =  TPL1401_ReadI2C_Byte(0x92, 0x21) >> 4;//g_GreenCurrent;
-									recevie_data->data2 =  TPL1401_ReadI2C_Byte(0x94, 0x21) >> 4;//g_BlueCurrent;																	
-									recevie_data->data5 = 109;
-								break;
-
-								case ALL_LED_ON:
-								default:
-									SetRGBCurrent();
-								break;
-					 }
-					break;
-
-					case GET_ADC_TEMP:
-					{
-							uint16_t ld_adc = 0, lcos_adc = 0;
-							uint16_t adc_val[3];
-							uint16_t ld_temp, lcos_temp;
 	
-							ld_adc = adc_GetAdcVal(adc_val);
-							lcos_adc = adc_val[2];
-							ld_temp = GetLd_RT_Temp(ld_adc);
-						  lcos_temp = GetLcos_RT_Temp(lcos_adc);
-						
-							recevie_data->data0 =  ld_adc;
-							recevie_data->data1 =  lcos_adc;
-							recevie_data->data2 =  ld_temp;
-							recevie_data->data3 =  lcos_temp;
-							recevie_data->data4 =  (lcos_adc*3300)/4096;
-							recevie_data->data5 =  114;
-					}
-					break;
-
-					case GET_CURRENT:
-							recevie_data->data0 =  96 - (TPL1401_ReadI2C_Byte(0x90, 0x21) >> 4);//g_RedCurrent;
-							recevie_data->data1 =  96 - (TPL1401_ReadI2C_Byte(0x92, 0x21) >> 4);//g_GreenCurrent;
-							recevie_data->data2 =  96 - (TPL1401_ReadI2C_Byte(0x94, 0x21) >> 4);//g_BlueCurrent;
-							recevie_data->data3 = 115;
-					break;
-
-					case SET_DISPLAY_ON:
-							display_on(recevie_data->data0);
-							recevie_data->data3 = 116;
-					break;
-
-					case SET_MOTOR_START:
-						Motor_start(recevie_data->data0, recevie_data->data1);
-						return;					
-
-					case GET_BRITNRSS_NUM:
-						recevie_data->data0 = BRITNRSS_NUM;
-					break;
-#ifdef CONFIG_KST_INDEX	
-					case GET_KST_NUM:
-						recevie_data->data0 = KST_NUM;
-					break;
-
-					case GET_SIDE_KST_NUM:
-						recevie_data->data0 = SIDE_KST_NUM;
-					break;
-#endif
-					case GET_DISPLAY_SIZE_NUM:
-						recevie_data->data0 = DISPLAY_SIZE_NUM;
-					break;
-
-					case GET_HORIZONTAL_NUM:
-						recevie_data->data0 = HORIZONTAL_NUM;
-					break;
-
-					case GET_VERTICAL_NUM:
-						recevie_data->data0 = VERTICAL_NUM;
-					break;
-					
-					case GET_CCT_NUM:
-						recevie_data->data0 = CCT_NUM;
-					break;
-
-					case GET_LED_ON_OFF:
-						recevie_data->data0 = gpiopin;
-					break;		
-					
-					case GET_ADC_PS:
-							value0 = adc_GetPsOut();
-							recevie_data->data0 =  value0;
-							recevie_data->data2 = 124;
-					break;		
-
-					case GET_ADC_TS:
-							value0 = adc_GetTsOut();
-							recevie_data->data0 =  value0;
-							recevie_data->data1 =  g_fan_value;
-					break;		
-
-					case GET_TUNING_PARAMETER:
-						HAL_UART_Transmit(&huart1, (uint8_t *)(&(g_projector_para.projector_tuning)), sizeof(struct Projector_CCT), 1000);
-					break;
-
-					case SET_R_GAIN:
-					{
-						uint8_t val;
-						val = recevie_data->data0;
-						if(val<=100)
-						{
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3216, val+155);
-							g_projector_para.r_gain = val+155 ;
-						}
-						else
-						{
-							recevie_data->data5 = 0xEE;
-						}
-						recevie_data->data3 = 125;
-						break;
-					}
-					case SET_G_GAIN:
-					{
-						uint8_t val;
-						val = recevie_data->data0;
-						if(val<=100)
-						{
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3217, recevie_data->data0+155);
-							g_projector_para.g_gain = val+155 ;
-						}
-						else
-						{
-							recevie_data->data5 = 0xEE;
-						}
-						recevie_data->data3 = 126;
-						break;
-					}
-					case SET_B_GAIN:
-					{
-						uint8_t val;
-						val = recevie_data->data0;
-						if(val<=100)
-						{
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3218, recevie_data->data0+155);
-							g_projector_para.b_gain = val+155 ;
-						}
-						else
-						{
-							recevie_data->data5 = 0xEE;
-						}
-						recevie_data->data3 = 127;
-						break;
-					}
-					case GET_R_GAIN:
-					{
-						uint8_t val;
-						I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x3216, &val);
-
-						recevie_data->data0 = val-155;
-						recevie_data->data1 = (unsigned short)g_projector_para.r_gain;
-						recevie_data->data2 = (char)g_projector_para.r_gain;
-						recevie_data->data3 = (unsigned short)g_projector_para.r_gain;
-						recevie_data->data4 = sizeof(struct Projector_parameter);
-						break;
-					}
-					case GET_G_GAIN:
-					{
-						uint8_t val;
-						I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x3217, &val);
-						recevie_data->data0 = val-155 ;
-						recevie_data->data3 = 129;
-						break;
-					}
-					case GET_B_GAIN:
-					{
-						uint8_t val;
-						I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x3218, &val);
-						recevie_data->data0 = val-155;
-						recevie_data->data3 = 130;
-						break;
-					}	
-					case READ_GAMA:
-					{
-						uint8_t reg_val;
-						uint8_t reg_addr;
-						
-						reg_addr = 0x58 + recevie_data->data0;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr, &reg_val);
-						recevie_data->data0 = reg_val;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 1, &reg_val);
-						recevie_data->data1 = reg_val;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 2, &reg_val);
-						recevie_data->data2 = reg_val;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 3, &reg_val);
-						recevie_data->data3 = reg_val;
-						break;
-					}
-					case WRITE_GAMA:
-					{
-						uint8_t reg_val;
-						uint8_t reg_addr;
-						reg_addr = 0x58 + recevie_data->data0;
-						reg_val = recevie_data->data1;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr, reg_val);
-						reg_addr = reg_addr + 4;
-						reg_val = recevie_data->data2;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr, reg_val);
-						break;
-					}
-					case GET_GAMA:
-					{
-						uint8_t reg_val;
-						uint8_t reg_addr;
-						
-						reg_addr = 0x58 + 8 * recevie_data->data0;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr, &reg_val);
-						recevie_data->data0 = reg_val;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 1, &reg_val);
-						recevie_data->data1 = reg_val;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 2, &reg_val);
-						recevie_data->data2 = reg_val;
-						I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 3, &reg_val);
-						recevie_data->data3 = reg_val;
-						
-						break;
-					}
-					case SET_GAMA:
-					{
-						uint8_t reg_val;
-						uint8_t reg_addr;
-
-						reg_addr = 0x58 + 8 * recevie_data->data0;
-						reg_val = recevie_data->data1;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr, reg_val);
-						reg_val = recevie_data->data2;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 1, reg_val);
-						reg_val = recevie_data->data3;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 2, reg_val);
-						//reg_val = recevie_data->data4;
-						//I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 3, reg_val);
-						reg_val = 255 - recevie_data->data1;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 4, reg_val);
-						reg_val = 255 - recevie_data->data2;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 5, reg_val);
-						reg_val = 255 - recevie_data->data3;
-						I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 6, reg_val);
-						//reg_val = 255 - recevie_data->data4;
-						//I2cWriteSxmb241(SXRD241_I2C_ADDRESS, reg_addr + 7, reg_val);
-						break;
-					}
-					
-					case SAVE_GAMA:
-					{
-						uint16_t cct_index = recevie_data->data0;
-						
-						g_projector_para.gamma_data.gamma_valid = 0xFDDF;
-						for(i=0; i<88; i++) {
-							I2cReadSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, &g_projector_para.gamma_data.gamma_reg[cct_index*88 + i]);
-						}
-						break;
-					}
-					
-					case READ_CXD:
-					{
-						uint8_t  reg_val;
-						uint16_t reg_addr;
-						reg_addr = recevie_data->data0;
-						I2cReadCxd3554(CXD3554_I2C_ADDRESS, reg_addr, &reg_val);
-						recevie_data->data0 = reg_val;
-						break;
-					}
-					case WRITE_CXD:
-					{
-						uint8_t  reg_val;
-						uint16_t reg_addr;
-						reg_addr = recevie_data->data0;
-						reg_val  = recevie_data->data1;
-						I2cWriteCxd3554(CXD3554_I2C_ADDRESS, reg_addr, reg_val);
-						break;
-					}
-					case SET_IPG:
-					{
-						I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1860, 0xf2);
-						I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, 0x00);
-						I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1864, 0x01);
-						break;
-					}
-					case GET_WC:
-					{
-						if((recevie_data->data0)<4)
-						{
-							recevie_data->data1 = wc_data_temp[recevie_data->data0].power_num;
-							recevie_data->data2 = wc_data_temp[recevie_data->data0].gain;
-							recevie_data->data3 = wc_data_temp[recevie_data->data0].offset;
-							recevie_data->data4 = wc_data_temp[recevie_data->data0].l;
-						}
-						else
-						{
-							recevie_data->data1 = 0xff;
-							recevie_data->data2 = 0xff;
-							recevie_data->data3 = 0xff;
-							recevie_data->data4 = 0xff;
-						}
-						break;
-					}
-					case SET_WC_SAVE:
-					{
-							memcpy(g_projector_para.wc,wc_temp,438);
-							memcpy(g_projector_para.wc_data,wc_data_temp,sizeof(struct Projector_WC)*4);
-							g_projector_para.wc_valid = 0x02;
-						break;
-					}
-					case GET_GAMA_PARAMETER:
-					{
-							//for(i=0;i<88;i++) printf("reg[%d]=0x%x\r\n",i+58, g_projector_para.gamma_data.gamma_reg[i]);
-							HAL_UART_Transmit(&huart1, (uint8_t *)&g_projector_para.gamma_data,  sizeof(struct Projector_Gama), 100);
-							return;
-					}
-					case SET_PARAMRTER:
-					{
-							setparameter(&g_projector_para);
-							break;
-					}
-					case READ_CXD3554:
-					{
-							uint8_t reg_data;
-						
-							I2cReadCxd3554(CXD3554_I2C_ADDRESS, recevie_data->data0, &reg_data);
-							recevie_data->data0 = reg_data;
-							//Dump_Cxd3554(recevie_data->data0, recevie_data->data1);
-							recevie_data->data4 = 3554;
-							break;
-					}
-					
-					case WRITE_CXD3554:
-					{						
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, recevie_data->data0, recevie_data->data1);
-							recevie_data->data4 = 3555;
-							break;
-					}
-					case SET_GPIOC:
-					{						
-							//recevie_data->data1 = ReadReg_10983(recevie_data->data0);
-							recevie_data->data1 = HAL_GPIO_ReadPin(GPIOC, (1 << recevie_data->data0));
-							recevie_data->data4 = 8888;
-							break;
-					}
-					
-					case SET_WEC:
-					{						
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1D20, recevie_data->data0);
-							recevie_data->data4 = 3666;
-							break;
-					}
-					
-					case TEST_IDC:
-					{
-							uint8_t reg_h, reg_l;
-						
-							//I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0061, 0xff);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1840, recevie_data->data2);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1841, (recevie_data->data0 >> 8) & 0x0f);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1842, recevie_data->data0 & 0xff);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1843, (recevie_data->data1 >> 8) & 0x07);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1844, recevie_data->data1 & 0xff);
-						
-						  I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x1845, &reg_h);
-						  I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x1846, &reg_l);
-							recevie_data->data0 = ((reg_h & 0x03) << 8) + reg_l;
-						
-							recevie_data->data4 = 777;
-							break;
-					}
-
-					case TEST_DC:
-					{
-							uint8_t reg_data;
-						
-							//I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0065, 0xff);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x21E0, recevie_data->data2 << 4);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x21E1, (recevie_data->data0 >> 8) & 0x0f);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x21E2, recevie_data->data0 & 0xff);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x21E3, (recevie_data->data1 >> 8) & 0x07);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x21E4, recevie_data->data1 & 0xff);
-						  I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x21E6, &reg_data);
-
-							recevie_data->data0 = reg_data;
-							recevie_data->data4 = 778;
-							break;
-					}
-
-					case TEST_ODC:
-					{
-							uint8_t reg_data;
-						
-							//I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0067, 0xff);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x30E0, recevie_data->data2 << 4);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x30E1, recevie_data->data3);//sub frame
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x30E2, (recevie_data->data0 >> 8) & 0x0f);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x30E3, recevie_data->data0 & 0xff);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x30E4, (recevie_data->data1 >> 8) & 0x07);
-							I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x30E5, recevie_data->data1 & 0xff);
-						  I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x30E6, &reg_data);
-							recevie_data->data0 = reg_data;						
-						  I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x30E7, &reg_data);
-							recevie_data->data1 = reg_data;						
-						  I2cReadCxd3554(CXD3554_I2C_ADDRESS, 0x30E8, &reg_data);
-							recevie_data->data2 = reg_data;
-						
-						  recevie_data->data4 = 779;
-							break;
-					}					
-					default:
-					break;
-				}
-				//recevie_data->checksum = UartReceiveLength;
-				recevie_data->checksum = (recevie_data->command + recevie_data->data0 + recevie_data->data1 + recevie_data->data2 + recevie_data->data3 + recevie_data->data4+ recevie_data->data5) % 0x1000;
-				HAL_UART_Transmit(&huart1, (uint8_t *)recevie_data,  sizeof(struct Projector_date), 100);
-		}
-	else
+	if(pRx[0] == 0xFE)
+	{
+		ToolUartCmdHandler(pRx, length);
+		return;
+	} else 	
+/*-------------------------------------------------------------------------------------------*/	
 	{
 		int para0_len,para1_len,read_len;
 		unsigned char temp;
@@ -1480,7 +843,9 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 		{
 			if(asu_rec_data.chip_addr == CXD3554_I2C_ADDRESS)
 			{
-				I2cReadCxd3554(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
+				//I2cReadCxd3554(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
+				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, r_regData, 2);
+				asu_rec_data.reg_value = r_regData[1];
 			}
 			else
 				I2cReadSxmb241(SXRD241_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
@@ -1541,7 +906,9 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 						else
 */				
 						{
-							I2cReadCxd3554(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
+							//I2cReadCxd3554(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);							
+							I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, r_regData, 2);
+							asu_rec_data.reg_value = r_regData[1];
 						}
 			}
 			else if (asu_rec_data.chip_addr == SXRD241_I2C_ADDRESS)
@@ -1687,51 +1054,81 @@ void ReceiveUart1Data(void)
 	HAL_UART_Receive_DMA(&huart1, (uint8_t *)UartReceiveRxBuffer, UART_BUFFER_MAX_SIZE);	
 }
 
+void UartCommandParser(void)
+{
+	int i = 0;
+	
+	if(UartTempLength > 0) {
+#if 0		
+		for (i=0;i<UartTempLength;i++)
+		{
+				if(UartTempBuffer[i] == 0xFE) break;
+		}
+		if(i == UartTempLength) 
+		{
+			Uart_Send_Response(CMD_ERROR, NULL, 0);	
+			return; //no 0xFE return 
+		}
+#endif
+		UartCommandLength = UartTempLength - i;
+		memset((void*)UartCommandBuffer,0x00,UART_BUFFER_MAX_SIZE);	
+		memcpy((void*)UartCommandBuffer, (void*)&UartTempBuffer[i], UartCommandLength);
+		
+		UartTempLength = 0;
+		UartCmdHandler((uint8_t *)UartCommandBuffer,UartCommandLength);
+	}
+}
+
 void HAL_UART_AbortReceiveCpltCallback (UART_HandleTypeDef *huart)
 {
 
-	UartCmdHandler((uint8_t *)UartReceiveRxBuffer,UartReceiveLength);
-	UartReceiveLength = 0;
-
+	memset((void*)UartTempBuffer,0x00,UART_BUFFER_MAX_SIZE);	
+	memcpy((void*)UartTempBuffer, (void*)UartReceiveRxBuffer, UartReceiveLength);
+	UartTempLength = UartReceiveLength;
+	
+	//printf("HAL_UART_AbortReceiveCpltCallback len=%d\r\n",UartReceiveLength);
 	//Re-start receiving
 	ReceiveUart1Data();
 	/* NOTE : This function should not be modified, when the callback is needed,
 	the HAL_UART_AbortTransmitCpltCallback can be implemented in the user file.
 	*/
 }	
+
 /* lcos ------------------------------------------------------------------*/
 
 void LcosSetGain(void)
 {
-		if((unsigned char)g_projector_para.r_gain<155)
-			g_projector_para.r_gain = 255;
-		if((unsigned char)g_projector_para.g_gain<155)
-			g_projector_para.g_gain = 255;
-		if((unsigned char)g_projector_para.b_gain<155)
-			g_projector_para.b_gain = 255;
+		if((g_projector_para.gain.valid) == PARAMETER_VALID)
+		{
+			if(g_projector_para.gain.r[1] < 155)
+				g_projector_para.gain.r[1] = 255;
+			if(g_projector_para.gain.g[1] < 155)
+				g_projector_para.gain.g[1] = 255;
+			if(g_projector_para.gain.b[1] < 155)
+				g_projector_para.gain.b[1] = 255;
 
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3216, (unsigned char)g_projector_para.r_gain);
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3217, (unsigned char)g_projector_para.g_gain);
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3218, (unsigned char)g_projector_para.b_gain);
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3216, g_projector_para.gain.r[1]);
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3217, g_projector_para.gain.g[1]);
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3218, g_projector_para.gain.b[1]);
+		}
+
 }
 
 void LcosSetGamma(void)
 {
-	  int i, cct_index;
-
-		printf("gamma_valid=0x%x\r\n",g_projector_para.gamma_data.gamma_valid);
-		if((g_projector_para.gamma_data.gamma_valid) == 0xFDDF)
+		uint16_t i;
+	
+		if((g_projector_para.gama.valid) == PARAMETER_VALID)
 		{
-			cct_index = 0;//g_projector_para.projector_tuning.cct_index;
-			for(i=0; i<88; i++) {
-				I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, g_projector_para.gamma_data.gamma_reg[cct_index*88 + i]);
-				printf("reg[%d]=0x%x\r\n",i+58, g_projector_para.gamma_data.gamma_reg[cct_index*88 + i]);
+			for(i = 0; i < GAMA_REG_NUM; i++) {
+				I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58 + i, g_projector_para.gama.val[i]);
+				printf("reg[%d]=0x%x\r\n",i+58, g_projector_para.gama.val[i]);
 			}
 		}
 		
 #if 0		
 		uint8_t reg_data;
-		for(i=0; i<88; i++) {
+		for(i=0; i<GAMA_REG_NUM; i++) {
 			I2cReadSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, &reg_data);
 			printf("reg[%d]=%d\r\n",i+58, reg_data);
 		}	
@@ -1740,85 +1137,51 @@ void LcosSetGamma(void)
 
 void LcosSetFlip(void)
 {
-	I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, 0x01);
-	I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, 0x01);
-
-	if(g_projector_para.vflip_valid == 0x01)
+	if(g_projector_para.flip.valid == PARAMETER_VALID)
 	{
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, (V_FLIP_Mode)(g_projector_para.vflip));
+		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, (H_FLIP_Mode)(g_projector_para.flip.h[1]));
+		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, (V_FLIP_Mode)(g_projector_para.flip.v[1]));
+	} else {
+		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, 0x01); //default val
+		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, 0x01);		
 	}
-	if(g_projector_para.hflip_valid == 0x01)
-	{
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, (H_FLIP_Mode)(g_projector_para.hflip));	
-	}
+	
 }
 
-#ifdef CONFIG_KST_INDEX
 void LcosSetKst(void)
 {
-		uint32_t i;
-		uint16_t index;
-
-		if((g_projector_para.keystone < KST_DEGREE_NUM)&&(g_projector_para.side_keystone<KST_DEGREE_NUM))
-		{
-			;
-		}
-		else
-		{
-			g_projector_para.keystone = 5;
-			g_projector_para.side_keystone =5;
-		}		
-		index = g_projector_para.keystone * KST_DEGREE_NUM + g_projector_para.side_keystone;
-		
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40, 0x6d);
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A41, 0x68);
-		for(i = 0; i<KST_REG_NUM ;i++)
-		{
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A49 + i, g_kst[index][i]);
-		}
-}
-#else
-void LcosSetKst(void)
-{
-		uint32_t i;
-
-		if(g_projector_para.kst_valid == 1)
+		if(g_projector_para.kst.valid == PARAMETER_VALID)
 		{
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40, 0x6d);
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A41, 0x68);
-			for(i = 0; i < 16 ;i++)
-				I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A49 + i, g_projector_para.kst_val[i]);
+				printf("get kst:");
+				for(uint8_t i = 1; i < KST_REG_NUM + 1; i++)
+				{
+					printf("0x%x ",g_projector_para.kst.val[i]);
+				}	
+				printf("\r\n");
+				
+			I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x1A49, &g_projector_para.kst.val[1], KST_REG_NUM);
 		}
 }
-#endif
-void LcosSetWC(void)
-{
-	  int i;
 
-		if((g_projector_para.wc_valid) == 0x02)
+void LcosSetWP(void)
+{
+		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40,0x6d);
+		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A42,0x30);
+	
+		if(g_projector_para.wp.valid != PARAMETER_VALID)
 		{
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40,0x6d);
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A42,0x30);
-			for(i=0; i<438; i++)
-			{ 
-					I2cWriteCxd3554(CXD3554_I2C_ADDRESS,0x3500 +i , g_projector_para.wc[i]);
-			}
+			memset(g_projector_para.wp.val, 0, WP_REG_NUM + 1);
 		}
-		else
-		{
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40,0x6d);
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A42,0x30);
-			for(i=0; i<438; i++)
-			{ 
-				  g_projector_para.wc[i] = 0x00;
-					I2cWriteCxd3554(CXD3554_I2C_ADDRESS,0x3500 +i , g_projector_para.wc[i]);
-			}
-			memset(g_projector_para.wc_data,0x00,sizeof(struct Projector_WC)*4);
-		}
-		memcpy(wc_temp,g_projector_para.wc,438);
-		memcpy(wc_data_temp,g_projector_para.wc_data,sizeof(struct Projector_WC)*4);	
+
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x3500, &g_projector_para.wp.val[1], WP_REG_NUM);
 }
 /* tim ------------------------------------------------------------------*/
+uint8_t FanSpeedConvert(uint32_t speed)
+{
+	 return (39*speed)/100;
+}
 uint8_t SetFan12Speed(uint32_t speed)
 {
   if(speed > FAN_SPEED_FULL)	speed = FAN_SPEED_FULL;
@@ -1827,7 +1190,7 @@ uint8_t SetFan12Speed(uint32_t speed)
 	
   TIM_OC_InitTypeDef sConfigOC={0};
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = speed;
+  sConfigOC.Pulse = FanSpeedConvert(speed);
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1);
@@ -1844,7 +1207,7 @@ uint8_t SetFan34Speed(uint32_t speed)
 	
   TIM_OC_InitTypeDef sConfigOC={0};
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = speed;
+  sConfigOC.Pulse = FanSpeedConvert(speed);
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2);
@@ -1860,7 +1223,7 @@ uint8_t SetFan5Speed(uint32_t speed)
 	
   TIM_OC_InitTypeDef sConfigOC={0};
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = speed;
+  sConfigOC.Pulse = FanSpeedConvert(speed);
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   HAL_TIM_PWM_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1);
@@ -1870,81 +1233,180 @@ uint8_t SetFan5Speed(uint32_t speed)
 }
 
 #if 1
-static uint8_t capture_Cnt = 0;
-static uint16_t capture_Buf[3] = {0};
+static uint8_t fan5_capCnt, fan12_capCnt, fan34_capCnt, ThreePMotor_capCnt;
+static uint16_t fan5_capBuf[3], fan12_capBuf[3], fan34_capBuf[3], ThreePMotor_capBuf[3];
 
-void SetTIM1ICPolarity(uint32_t Polarity)
-{
-  TIM_IC_InitTypeDef sConfigIC = {0};
-	
-  sConfigIC.ICPolarity = Polarity;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }	
-}
+#define TESTSPEED_BASE   30000000
 
-uint8_t GetFanSpeed(void)
+uint8_t GetThreePMotorSpeed(void)
 {
-	uint16_t high_time, lower_time, T_time;
-	uint16_t count = 0xffff;
+	uint16_t count = 1000, speed = 0, T_time;
 	
-		__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-		//SetTIM1ICPolarity(TIM_INPUTCHANNELPOLARITY_RISING);
-		HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);		
-		capture_Cnt = 1;
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim14, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim14, TIM_CHANNEL_1);		
+		ThreePMotor_capCnt = 1;
 	
 	/* waiting convert complete */
-	while(count && capture_Cnt != 4 ) {
+	while(count && ThreePMotor_capCnt != 4 ) {
+		HAL_Delay(1);
 		count--;
 	}
 	
 	if(count != 0)
 	{
-		high_time = capture_Buf[1]- capture_Buf[0]; 
-		lower_time = capture_Buf[2]- capture_Buf[1];
-		T_time =  capture_Buf[2] - capture_Buf[0];
-		
-		printf("GetFanSpeed  capture1:%d capture2:%d capture3:%d \r\n", capture_Buf[0], capture_Buf[1], capture_Buf[2]);
-		printf("GetFanSpeed  high_time:%d lower_time:%d T_time:%d count:%d \r\n", high_time, lower_time, T_time, count);
+		T_time =  ThreePMotor_capBuf[2] - ThreePMotor_capBuf[0];
+		speed = TESTSPEED_BASE/T_time;
+		printf("GetThreePMotorSpeed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	}
-	else printf("GetFanSpeed  timeout!!! \r\n");
 
-	return 0;
+	return speed;
+}
+
+uint8_t GetFan12Speed(void) //PA8 timer1_ch1
+{
+	uint16_t count = 1000, speed = 0, T_time;
+	
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim17, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim17, TIM_CHANNEL_1);		
+		fan12_capCnt = 1;
+	
+	/* waiting convert complete */
+	while(count && fan12_capCnt != 4 ) {
+		HAL_Delay(1);
+		count--;
+	}
+	
+	if(count != 0)
+	{
+		T_time =  fan12_capBuf[2] - fan12_capBuf[0];
+		speed = TESTSPEED_BASE/T_time;
+		printf("GetFan12Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
+	}
+
+	return speed;
+}
+
+uint8_t GetFan34Speed(void)
+{
+	uint16_t count = 1000, speed = 0, T_time;
+	
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim16, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim16, TIM_CHANNEL_1);		
+		fan34_capCnt = 1;
+	
+	/* waiting convert complete */
+	while(count && fan34_capCnt != 4 ) {
+		HAL_Delay(1);
+		count--;
+	}
+	
+	if(count != 0)
+	{
+		T_time =  fan34_capBuf[2] - fan34_capBuf[0];
+		speed = TESTSPEED_BASE/T_time;
+		printf("GetFan34Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
+	}
+
+	return speed;
+}
+
+uint8_t GetFan5Speed(void)
+{
+	uint16_t count = 1000, speed = 0, T_time;
+	
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim17, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim17, TIM_CHANNEL_1);		
+		fan5_capCnt = 1;
+	
+	/* waiting convert complete */
+	while(count && fan5_capCnt != 4 ) {
+		HAL_Delay(1);
+		count--;
+	}
+	
+	if(count != 0)
+	{
+		T_time =  fan5_capBuf[2] - fan5_capBuf[0];
+		speed = TESTSPEED_BASE/T_time;
+		printf("GetFan5Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
+	}
+
+	return speed;
 }
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-	printf("HAL_TIM_IC_CaptureCallback  capture_Cnt:%d !!! \r\n", capture_Cnt);
-	if(TIM1 == htim->Instance)
+	if(TIM14 == htim->Instance)
 	{
-		switch(capture_Cnt){
+		printf("HAL_TIM_IC_CaptureCallback  ThreePMotor_capCnt:%d !!! \r\n", ThreePMotor_capCnt);
+		switch(ThreePMotor_capCnt){
 			case 1:
-				capture_Buf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
-				//SetTIM1ICPolarity(TIM_ICPOLARITY_FALLING);
-				capture_Cnt++;
+				ThreePMotor_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim14,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim14,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
+				ThreePMotor_capCnt++;
 				break;
 			
 			case 2:
-				capture_Buf[1] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-				//SetTIM1ICPolarity(TIM_INPUTCHANNELPOLARITY_RISING);
-				capture_Cnt++;  
+				ThreePMotor_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim14,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim14, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+				ThreePMotor_capCnt++;  
 				break;		
 			
 			case 3:
-				capture_Buf[2] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
-				HAL_TIM_IC_Stop_IT(&htim1,TIM_CHANNEL_1);
-				capture_Cnt++;  
-				break;			
-		}
-	
+				ThreePMotor_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim14,TIM_CHANNEL_1);
+				HAL_TIM_IC_Stop_IT(&htim14,TIM_CHANNEL_1);
+				ThreePMotor_capCnt++;  
+				break;
+		}			
 	}
 	
+	if(TIM16 == htim->Instance)
+	{
+		printf("HAL_TIM_IC_CaptureCallback  fan34_capCnt:%d !!! \r\n", fan34_capCnt);
+		switch(fan34_capCnt){
+			case 1:
+				fan34_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim16,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim16,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
+				fan34_capCnt++;
+				break;
+			
+			case 2:
+				fan34_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim16,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim16, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan34_capCnt++;  
+				break;		
+			
+			case 3:
+				fan34_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim16,TIM_CHANNEL_1);
+				HAL_TIM_IC_Stop_IT(&htim16,TIM_CHANNEL_1);
+				fan34_capCnt++;  
+				break;
+		}			
+	}
+		
+	if(TIM17 == htim->Instance)
+	{
+		//printf("HAL_TIM_IC_CaptureCallback  fan5_capCnt:%d !!! \r\n", fan5_capCnt);
+		switch(fan5_capCnt){
+			case 1:
+				fan5_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim17,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim17,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
+				fan5_capCnt++;
+				break;
+			
+			case 2:
+				fan5_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim17,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim17, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan5_capCnt++;  
+				break;		
+			
+			case 3:
+				fan5_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim17,TIM_CHANNEL_1);
+				HAL_TIM_IC_Stop_IT(&htim17,TIM_CHANNEL_1);
+				fan5_capCnt++;  
+				break;			
+		}
+	}
 }
 #endif
 /* adc ------------------------------------------------------------------*/

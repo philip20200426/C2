@@ -126,7 +126,7 @@ void ThreePhaseMotorDriver_init(void)
 	if(A5931_ReadI2C_Byte((uint8_t)0) != ASU_FLAG) {
 		for(i=0;i<sizeof(A5931_init_data)/sizeof(uint16_t);i++) {
 			A5931_WriteI2C_Byte(i, A5931_init_data[i]);	
-			printf("A5931_init write reg %d->0x%x\r\n",i, A5931_init_data[i]);			
+			//printf("A5931_init write reg %d->0x%x\r\n",i, A5931_init_data[i]);			
 		}
 	}
 	

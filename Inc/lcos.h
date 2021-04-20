@@ -7,6 +7,10 @@
 #define CXD3554_I2C_ADDRESS 0x74
 #define SXRD241_I2C_ADDRESS 0x92
 
+#define KST_REG_NUM				16
+#define GAMA_REG_NUM			88
+#define WP_REG_NUM				438
+#define WEC_REG_NUM				912
 
 #define CXD3554_MISC_BASEADDRESS 0x0000
 #define CXD3554_INP_BASEADDRESS 0x1430
@@ -168,7 +172,6 @@ void LcosVideoMute(CXD3554VIDEO_ONOFF);
 void LcosSetRGBWDutyMode(void);
 void Lcos_Inp_ClearMipiTrnsErr(void);
 void Lcos_CheckRegError(uint8_t local);
-//void LcosSetFlip(void);
 void SetDisplay_Size(void);
 void LcosInitGamma(void);
 void LcosSetRRGGBBGGMode(void);

@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32G070xx,USE_HAL_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                                           ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                           ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                           ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
+              <IncludePath>../Inc;                                                                                                ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                                ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                                ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -413,6 +413,11 @@
               <FilePath>..\Src\LaserDrv.c</FilePath>
             </File>
             <File>
+              <FileName>drv10983.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\drv10983.c</FilePath>
+            </File>
+            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/main.c</FilePath>
@@ -456,11 +461,6 @@
               <FileName>stm32g0xx_hal_msp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/stm32g0xx_hal_msp.c</FilePath>
-            </File>
-            <File>
-              <FileName>drv10983.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\drv10983.c</FilePath>
             </File>
           </Files>
         </Group>
