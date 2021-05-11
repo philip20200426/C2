@@ -91,10 +91,10 @@ volatile _Bool Flag1s = 0;
 volatile _Bool Flag5s = 0;
 
 volatile _Bool Flag_Sxrd241_Alarm = 0;
-volatile _Bool Flag_Projector_On = 0;
+volatile _Bool Flag_Projector_On = 1;
 //volatile _Bool Flag_FanLock = 0;
 volatile _Bool Flag_LT9211_Int = 0;
-volatile _Bool Flag_FanTest = 0;
+volatile _Bool g_FanMode = 0;
 volatile _Bool Flag_MatMode = 0;
 
 uint32_t g_fan_value;
@@ -209,9 +209,15 @@ int main(void)
 	Variables_Init();
   GetParameter();
   GpioConfig();	
+#if 1	
 	SetFan12Speed(FAN_SPEED_DEFAULT);
 	SetFan34Speed(FAN_SPEED_DEFAULT);
   SetFan5Speed(FAN_SPEED_SLOW);
+#else
+	SetFan12Speed(FAN_SPEED_FULL);
+	SetFan34Speed(FAN_SPEED_FULL);
+  SetFan5Speed(FAN_SPEED_FULL);	
+#endif
 	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	
@@ -457,7 +463,10 @@ void SysTask16ms(void)
 
 void SysTask256ms(void)
 {
-
+	if(Flag_Projector_On == 0)
+	{
+		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
+	}
 }
 
 void SysTask512ms(void)
@@ -467,7 +476,10 @@ void SysTask512ms(void)
 
 void SysTask1s(void)
 {
-  HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
+	if(Flag_Projector_On == 1) 
+	{
+		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
+	}
 }
 
 
@@ -528,7 +540,42 @@ const uint16_t LD_RT_TABLE[] =
 	332, 
 	319, 
 	308, 
-	296  //55 degree
+	296,  //55 degree
+	286,
+	275,
+	265,
+	256,
+	247,
+	238,
+	230,
+	222,
+	214,
+	207,
+	199,
+	193,
+	186,
+	180,
+	174,
+	168,
+	162,
+	157,
+	152,
+	147,
+	142,
+	137,
+	133,
+	129,
+	125,
+	121,
+	117,
+	113,
+	110,
+	106,
+	103,
+	100,
+	97,
+	94,
+	91   //90 degree
 };
 
 uint16_t GetLd_RT_Temp(uint16_t adc_val)
@@ -548,9 +595,10 @@ uint16_t GetLd_RT_Temp(uint16_t adc_val)
 		if(LD_RT_TABLE[i] < ohm ) break;
 	}
 	
-	return i + 1;
+	return i;
 }
 
+/* -10 ~ +60  Recommended temperature is +45 to +55 */
 uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 {//temp = (1839 - vol)/11
 	uint16_t vol;
@@ -567,7 +615,6 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 
 void SysTask5s(void)
 {
-
 	uint16_t ld_adc = 0, lcos_adc = 0;
 	uint16_t adc_val[3];
 	uint16_t ld_temp, lcos_temp;
@@ -579,9 +626,9 @@ void SysTask5s(void)
 	printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
 	//GetFanSpeed();
 
-	if(!Flag_FanTest)
+	if(!g_FanMode)
 	{
-		if(ld_temp > 50)
+		if(ld_temp > 55 || lcos_temp > 60)
 		{  	
 				if(Flag_Projector_On != 0)
 				{
@@ -592,7 +639,7 @@ void SysTask5s(void)
 				SetFan12Speed(FAN_SPEED_FULL);
 				SetFan34Speed(FAN_SPEED_FULL);
 		}
-		else if(ld_temp < 40)
+		else if(ld_temp < 45 && lcos_temp < 50)
 		{
 				if(Flag_Projector_On != 1)
 				{
@@ -602,7 +649,7 @@ void SysTask5s(void)
 				SetFan12Speed(FAN_SPEED_DEFAULT);
 				SetFan34Speed(FAN_SPEED_DEFAULT);
 		}
-#if 0
+#if 0	
 		else
 		{
 				if(Flag_Projector_On != 1)
@@ -658,6 +705,7 @@ void SysTaskDispatch(void)
 		if(Flag256ms)
 		{
 		   Flag256ms = 0;
+			 SysTask256ms();
 		}
 		if(Flag512ms)
 		{

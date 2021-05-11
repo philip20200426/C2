@@ -43,7 +43,6 @@ volatile uint8_t UartTempLength = 0;
 volatile uint8_t UartCommandLength = 0;
 /* sony tools  ---------------------------------------------------------*/
 struct asu_date asu_rec_data;
-uint8_t r_regData[2];
 int  data_len = 0;
 char receive_buffer[40];
 char R_0[15] = {114,32,48,13,13,10,32,79,75,32,50,48,66,13,10};
@@ -55,7 +54,7 @@ char OK_3[10] = {13,13,10,32,79,75,32,50,13,10};
 char OK_7[10] = {13,13,10,32,79,75,32,54,13,10};
 char flag_0 = 0;
 
-extern volatile _Bool Flag_FanTest;
+extern volatile _Bool g_FanMode;
 extern volatile _Bool Flag_MatMode;
 extern uint16_t g_RGBCurrent[3];
 
@@ -492,7 +491,7 @@ void Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t cou
 void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
 {
 		uint8_t ret;
-		uint8_t *pBuf;
+		uint8_t *pBuf = val_buf;
 #if 0	
 		if(count == 1)
 		{
@@ -510,12 +509,13 @@ void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t coun
 				{
 					ret = I2cReadSxmb241(SXRD241_I2C_ADDRESS, reg+i, &val_buf[i]);
 				}	
-				pBuf = val_buf;
 			}
 			else
 			{
-				ret = I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, reg, val_buf, count + 1); //3554 discard one byte
-				pBuf = &val_buf[1];
+				for(uint16_t i = 0; i < count; i++)
+				{
+					ret = I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, reg+i, &val_buf[i]);
+				}
 			}
 		}
 		
@@ -541,15 +541,17 @@ void Uart_Save_Parameter(uint8_t type)
 			case PARA_FLIP:
 			{
 				g_projector_para.flip.valid = PARAMETER_VALID;
-				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x0090, g_projector_para.flip.h, 2);
-				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x0091, g_projector_para.flip.v, 2);
+				I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x0090, &g_projector_para.flip.h);
+				I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x0091, &g_projector_para.flip.v);
 				break;
 			}
 
 			case PARA_KST:
 			{
 				g_projector_para.kst.valid = PARAMETER_VALID;
-				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x1A49, g_projector_para.kst.val, KST_REG_NUM + 1);
+				for(uint16_t i = 0; i < KST_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x1A49+i, &g_projector_para.kst.val[i]);
+				}
 #if 0
 				printf("set kst:");
 				for(uint8_t i = 1; i < KST_REG_NUM+1; i++)
@@ -573,7 +575,10 @@ void Uart_Save_Parameter(uint8_t type)
 			case PARA_WP:
 			{
 				g_projector_para.wp.valid = PARAMETER_VALID;
-				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, 0x3500, g_projector_para.wp.val, WP_REG_NUM + 1);
+				for(uint16_t i = 0; i < WP_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x3500+i, &g_projector_para.wp.val[i]);
+				}
+				
 				break;
 			}		
 
@@ -661,11 +666,15 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 
 		case CMD_SET_FANS:
 		{
-			Flag_FanTest = 1;
-			SetFan12Speed(pRx[PACKAGE_DATA_BASE]);
-			SetFan34Speed(pRx[PACKAGE_DATA_BASE]);
-			SetFan5Speed(pRx[PACKAGE_DATA_BASE + 1]);			
+			g_FanMode = pRx[PACKAGE_DATA_BASE + 3];	
+			if(g_FanMode != 0)
+			{
+				SetFan12Speed(pRx[PACKAGE_DATA_BASE]);
+				SetFan34Speed(pRx[PACKAGE_DATA_BASE + 1]);
+				SetFan5Speed(pRx[PACKAGE_DATA_BASE + 2]);	
+			}
 			Uart_Send_Response(head->command, NULL, 0);
+			
 			break;			
 		}
 		
@@ -708,12 +717,13 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 		case CMD_GET_FANS:
 		{	
 			buf[0] =  g_fan12_speed;
-			//buf[1] =  g_fan34_speed;
-			buf[1] =  g_fan5_speed;
-			GetFan5Speed();
-			GetFan34Speed();
-			GetThreePMotorSpeed();
-			Uart_Send_Response(head->command, buf, 2);			
+			buf[1] =  g_fan34_speed;
+			buf[2] =  g_fan5_speed;
+			buf[3] = g_FanMode;
+			//GetFan5Speed();
+			//GetFan34Speed();
+			//GetThreePMotorSpeed();
+			Uart_Send_Response(head->command, buf, 4);			
 			break;			
 		}
 
@@ -774,8 +784,9 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 {
 	I2C_HandleTypeDef hi2c;
   uint16_t i;
+	uint16_t frame_head = *(uint16_t*)pRx;
 
-#if 1
+#if 0
 	printf("\n\r UartCmdHandler %d Bytes:",length);
 	for(uint16_t i = 0; i < length; i++)
 	{
@@ -784,7 +795,7 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 	printf("\n\r");
 #endif
 	
-	if(pRx[0] == 0xFE)
+	if(frame_head == COMM_FLAG)
 	{
 		ToolUartCmdHandler(pRx, length);
 		return;
@@ -800,9 +811,6 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 		memcpy(receive_buffer,pRx,UartReceiveLength);
 		read_len = read_evm(receive_buffer,UartReceiveLength,&para0_len,&para1_len);
 		para_Analysis((char*)(&receive_buffer),para0_len,para1_len);
-#if 1
-		printf("rw:%d chip_addr:0x%x  0x%x->0x%x \r\n",asu_rec_data.w_r, asu_rec_data.chip_addr, asu_rec_data.reg_addr, asu_rec_data.reg_value);
-#endif
 
 		if(asu_rec_data.w_r == 1)
 		{
@@ -843,9 +851,7 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 		{
 			if(asu_rec_data.chip_addr == CXD3554_I2C_ADDRESS)
 			{
-				//I2cReadCxd3554(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
-				I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, r_regData, 2);
-				asu_rec_data.reg_value = r_regData[1];
+				I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
 			}
 			else
 				I2cReadSxmb241(SXRD241_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);
@@ -906,9 +912,7 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 						else
 */				
 						{
-							//I2cReadCxd3554(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);							
-							I2cReadCxd3554Burst(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, r_regData, 2);
-							asu_rec_data.reg_value = r_regData[1];
+							I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, asu_rec_data.reg_addr, (uint8_t *)&asu_rec_data.reg_value);	
 						}
 			}
 			else if (asu_rec_data.chip_addr == SXRD241_I2C_ADDRESS)
@@ -1100,16 +1104,16 @@ void LcosSetGain(void)
 {
 		if((g_projector_para.gain.valid) == PARAMETER_VALID)
 		{
-			if(g_projector_para.gain.r[1] < 155)
-				g_projector_para.gain.r[1] = 255;
-			if(g_projector_para.gain.g[1] < 155)
-				g_projector_para.gain.g[1] = 255;
-			if(g_projector_para.gain.b[1] < 155)
-				g_projector_para.gain.b[1] = 255;
+			if(g_projector_para.gain.r < 155)
+				g_projector_para.gain.r = 255;
+			if(g_projector_para.gain.g < 155)
+				g_projector_para.gain.g = 255;
+			if(g_projector_para.gain.b < 155)
+				g_projector_para.gain.b = 255;
 
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3216, g_projector_para.gain.r[1]);
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3217, g_projector_para.gain.g[1]);
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3218, g_projector_para.gain.b[1]);
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3216, g_projector_para.gain.r);
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3217, g_projector_para.gain.g);
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x3218, g_projector_para.gain.b);
 		}
 
 }
@@ -1137,15 +1141,14 @@ void LcosSetGamma(void)
 
 void LcosSetFlip(void)
 {
-	if(g_projector_para.flip.valid == PARAMETER_VALID)
-	{
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, (H_FLIP_Mode)(g_projector_para.flip.h[1]));
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, (V_FLIP_Mode)(g_projector_para.flip.v[1]));
-	} else {
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, 0x01); //default val
-		I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, 0x01);		
-	}
-	
+		if(g_projector_para.flip.valid == PARAMETER_VALID)
+		{
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, (H_FLIP_Mode)(g_projector_para.flip.h));
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, (V_FLIP_Mode)(g_projector_para.flip.v));
+		} else {
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, 0x01); //default val
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, 0x01);		
+		}
 }
 
 void LcosSetKst(void)
@@ -1154,14 +1157,15 @@ void LcosSetKst(void)
 		{
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A40, 0x6d);
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1A41, 0x68);
-				printf("get kst:");
-				for(uint8_t i = 1; i < KST_REG_NUM + 1; i++)
-				{
-					printf("0x%x ",g_projector_para.kst.val[i]);
-				}	
-				printf("\r\n");
-				
-			I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x1A49, &g_projector_para.kst.val[1], KST_REG_NUM);
+#if 0			
+			printf("get kst:");
+			for(uint8_t i = 0; i < KST_REG_NUM; i++)
+			{
+				printf("0x%x ",g_projector_para.kst.val[i]);
+			}	
+			printf("\r\n");
+#endif			
+			I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x1A49, g_projector_para.kst.val, KST_REG_NUM);
 		}
 }
 
@@ -1172,10 +1176,10 @@ void LcosSetWP(void)
 	
 		if(g_projector_para.wp.valid != PARAMETER_VALID)
 		{
-			memset(g_projector_para.wp.val, 0, WP_REG_NUM + 1);
+			memset(g_projector_para.wp.val, 0, WP_REG_NUM);
 		}
 
-		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x3500, &g_projector_para.wp.val[1], WP_REG_NUM);
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x3500, g_projector_para.wp.val, WP_REG_NUM);
 }
 /* tim ------------------------------------------------------------------*/
 uint8_t FanSpeedConvert(uint32_t speed)

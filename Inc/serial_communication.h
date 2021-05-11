@@ -112,22 +112,22 @@ struct Parameter_Curent
 struct Parameter_Gain
 {
     uint8_t  valid;
-    uint8_t  r[2];
-    uint8_t  g[2];
-    uint8_t  b[2];	
+    uint8_t  r;
+    uint8_t  g;
+    uint8_t  b;	
 };
 
 struct Parameter_Flip
 {
     uint8_t  valid;
-    uint8_t  h[2];	
-    uint8_t  v[2];	
+    uint8_t  h;	
+    uint8_t  v;	
 };
 
 struct Parameter_Kst
 {
     uint8_t  valid;
-    uint8_t  val[KST_REG_NUM + 1];		
+    uint8_t  val[KST_REG_NUM];		
 };
 
 struct Parameter_Gama
@@ -139,7 +139,7 @@ struct Parameter_Gama
 struct Parameter_Wp
 {
     uint8_t  valid;
-    uint8_t  val[WP_REG_NUM + 1];		
+    uint8_t  val[WP_REG_NUM];		
 };
 
 struct Projector_parameter{
@@ -173,6 +173,7 @@ extern uint8_t SetFan34Speed(uint32_t speed);
 extern uint8_t SetFan5Speed(uint32_t speed);
 extern uint8_t I2cWriteCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t I2cData);
 extern uint8_t I2cReadCxd3554(uint8_t I2cAddr,uint16_t I2cReg, uint8_t *I2cData);
+extern uint8_t I2cReadCxd3554Ex(uint8_t I2cAddr,uint16_t I2cReg, uint8_t *I2cData);
 extern uint8_t I2cWriteSxmb241(uint8_t I2cAddr,uint8_t I2cReg,uint8_t I2cData);
 extern uint8_t I2cReadSxmb241(uint8_t I2cAddr, uint8_t I2cReg, uint8_t *I2cData);
 extern uint8_t I2cReadCxd3554Burst(uint8_t I2cAddr,uint16_t I2cReg, uint8_t *I2cData, uint16_t size);
