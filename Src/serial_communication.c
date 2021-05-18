@@ -748,6 +748,8 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 	}	
 }
 
+//#define PRINT_RECV_LOG
+//#define PRINT_SEND_LOG
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size )
 {
 	struct PACKAGE_HEAD head;
@@ -757,7 +759,7 @@ void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size )
 	head.size = size;
 	head.check = 0;
 	head.check = checksum(data, size);		
-#if 0
+#ifdef PRINT_SEND_LOG
 	printf("\r\n send head:");	
 	uint8_t* p = (uint8_t* )&head;
 	for(uint8_t i=0;i<sizeof(struct PACKAGE_HEAD);i++)
@@ -770,7 +772,7 @@ void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size )
 	HAL_UART_Transmit(&huart1, (uint8_t*)&head,  sizeof(struct PACKAGE_HEAD), 100);
 	HAL_UART_Transmit(&huart1, data,  size, 100);
 	
-#if 0	
+#ifdef PRINT_SEND_LOG
 	printf("\r\n send data:");	
 	for(uint8_t i=0;i<size;i++)
 	{
@@ -786,7 +788,7 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
   uint16_t i;
 	uint16_t frame_head = *(uint16_t*)pRx;
 
-#if 0
+#ifdef PRINT_RECV_LOG
 	printf("\n\r UartCmdHandler %d Bytes:",length);
 	for(uint16_t i = 0; i < length; i++)
 	{

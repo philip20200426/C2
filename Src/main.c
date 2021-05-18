@@ -481,8 +481,7 @@ void SysTask1s(void)
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
 }
-
-
+/*-------------------------------------------------------------------------------------------*/	
 const uint16_t LD_RT_TABLE[] =
 {/* 0~55   45*/
 	3318,  //0 degree
@@ -586,7 +585,7 @@ uint16_t GetLd_RT_Temp(uint16_t adc_val)
 	if(ohm >  LD_RT_TABLE[0]) 
 	{
 		printf("LD OHM:%d \r\n",ohm);	
-
+		if (ohm > 18744) return 50; //no ld RT register
 		return 0;
 	}
 	
@@ -612,7 +611,105 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 	
 	return (1839 - vol)/11;
 }
+/*-------------------------------------------------------------------------------------------*/	
+const uint8_t LD_CTL_TABLE[][2] =
+{/* 0~55   45*/	
+	{30, 10},		
+	{31, 10},	
+	{32, 10},	
+	{33, 10},	
+	{34, 10},
+	{35, 10},
+	{36, 10},	
+	{37, 10},	
+	{38, 10},	
+	{39, 10},	
+	{40, 10},	
+	{41, 10},	
+	{42, 20},	
+	{43, 30},	
+	{44, 40},
+	{45, 45},	
+	{46, 50},	
+	{47, 55},	
+	{48, 60},	
+	{49, 65},	
+	{50, 70},	
+	{51, 75},	
+	{52, 80},	
+	{53, 85},	
+	{54, 90},
+	{55, 100},	
+	{56, 100},	
+	{57, 100},	
+	{58, 100},	
+	{59, 100},	
+	{60, 100}
+};
 
+uint8_t get_ld_fanpwm(uint8_t temp)
+{
+	uint8_t i;
+	
+	if(temp < LD_CTL_TABLE[0][0]) return LD_CTL_TABLE[0][1];
+		
+	for (i = 0; i < sizeof(LD_CTL_TABLE)/sizeof(uint8_t)/2; i++)
+	{		
+		if(LD_CTL_TABLE[i][0] == temp ) return LD_CTL_TABLE[i][1];
+	}
+	
+	return LD_CTL_TABLE[i-1][1];
+}
+
+const uint8_t LCOS_CTL_TABLE[][2] =
+{/*+45 to +55*/
+	{30, 10},	
+	{31, 10},	
+	{32, 10},	
+	{33, 10},	
+	{34, 10},
+	{35, 10},
+	{36, 10},	
+	{37, 10},	
+	{38, 10},	
+	{39, 10},	
+	{40, 10},	
+	{41, 10},	
+	{42, 10},	
+	{43, 20},	
+	{44, 25},
+	{45, 30},	
+	{46, 35},	
+	{47, 40},	
+	{48, 45},	
+	{49, 50},	
+	{50, 55},	
+	{51, 60},	
+	{52, 65},	
+	{53, 70},	
+	{54, 75},
+	{55, 80},	
+	{56, 85},	
+	{57, 90},	
+	{58, 95},	
+	{59, 100},	
+	{60, 100}
+};
+
+uint8_t get_lcos_fanpwm(uint8_t temp)
+{
+	uint8_t i;
+	
+	if(temp < LCOS_CTL_TABLE[0][0]) return LCOS_CTL_TABLE[0][1];
+		
+	for (i = 0; i < sizeof(LCOS_CTL_TABLE)/sizeof(uint8_t)/2; i++)
+	{		
+		if(LCOS_CTL_TABLE[i][0] == temp ) return LCOS_CTL_TABLE[i][1];
+	}
+
+	return LCOS_CTL_TABLE[i-1][1];
+}
+/*-------------------------------------------------------------------------------------------*/	
 void SysTask5s(void)
 {
 	uint16_t ld_adc = 0, lcos_adc = 0;
@@ -628,16 +725,23 @@ void SysTask5s(void)
 
 	if(!g_FanMode)
 	{
+		if(Flag_Projector_On == 1)
+		{
+			SetFan12Speed(get_ld_fanpwm(ld_temp));
+			SetFan34Speed(get_ld_fanpwm(ld_temp));		
+			SetFan5Speed(get_lcos_fanpwm(lcos_temp));
+		}
+		
 		if(ld_temp > 55 || lcos_temp > 60)
 		{  	
 				if(Flag_Projector_On != 0)
 				{
 					Flag_Projector_On = 0;
 					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
+					SetFan12Speed(FAN_SPEED_FULL);
+					SetFan34Speed(FAN_SPEED_FULL);
+					SetFan5Speed(FAN_SPEED_FULL);	
 				}	
-		
-				SetFan12Speed(FAN_SPEED_FULL);
-				SetFan34Speed(FAN_SPEED_FULL);
 		}
 		else if(ld_temp < 45 && lcos_temp < 50)
 		{
@@ -646,24 +750,8 @@ void SysTask5s(void)
 					Flag_Projector_On = 1;
 					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 				}	
-				SetFan12Speed(FAN_SPEED_DEFAULT);
-				SetFan34Speed(FAN_SPEED_DEFAULT);
 		}
-#if 0	
-		else
-		{
-				if(Flag_Projector_On != 1)
-				{
-					Flag_Projector_On = 1;
-					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
-				}	
-				g_fan_value = FAN_SPEED_DEFAULT + 3 * (ld_temp - 40);
-				SetFan12Speed(g_fan_value);
-				SetFan34Speed(g_fan_value);
-		}	
-#endif
 	}
-
 }
 
 void SysTaskDispatch(void)

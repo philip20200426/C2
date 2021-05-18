@@ -1,7 +1,7 @@
 #include "lcos.h"
 #include "i2c.h"
 
-#define SONY_TOOL_TEST
+//#define SONY_TOOL_TEST
 #define RETRY_CNT 1
 /*================================================================================================================================*/
 uint8_t I2cWriteSxmb241(uint8_t I2cAddr,uint8_t I2cReg,uint8_t I2cData)
