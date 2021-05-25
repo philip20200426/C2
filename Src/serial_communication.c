@@ -524,17 +524,60 @@ void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t coun
 		else
 			Uart_Send_Response(cmd, pBuf, count);	
 }	
-	
-void Uart_Save_Parameter(uint8_t type)
+
+uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t current_b)
 {
+		uint8_t ret = SetRedCurrent(current_r);
+		if(ret != HAL_OK)
+		{				
+			return ret;
+		}
+		
+		ret = SetGreenCurrent(current_g);
+		if(ret != HAL_OK)
+		{				
+			return ret;
+		}
+		
+		ret = SetBlueCurrent(current_b);
+		if(ret != HAL_OK)
+		{				
+			return ret;
+		}
+		
+		return HAL_OK;
+}
+
+void Uart_Save_Parameter(uint8_t* pData)
+{
+		uint8_t data_len = pData[PACKAGE_DATA_BASE - 3];
+		uint8_t type = pData[PACKAGE_DATA_BASE];
+	
 		switch(type)
 		{
 			case PARA_CURRENT:
 			{
-				g_projector_para.current.valid = PARAMETER_VALID;
-				g_projector_para.current.r = g_RGBCurrent[0];
-				g_projector_para.current.g = g_RGBCurrent[1];
-				g_projector_para.current.b = g_RGBCurrent[2];				
+				if(data_len == 1)//user parameter
+				{
+					g_projector_para.current.valid = PARAMETER_VALID;
+					g_projector_para.current.index = CURRENT_USER;
+					g_projector_para.current.r[CURRENT_USER] = g_RGBCurrent[0];
+					g_projector_para.current.g[CURRENT_USER] = g_RGBCurrent[1];
+					g_projector_para.current.b[CURRENT_USER] = g_RGBCurrent[2];	
+				}	else if(data_len == 10){//tunning parameter
+					g_projector_para.current.valid = PARAMETER_VALID;
+					g_projector_para.current.index = CURRENT_NORMAL;
+					
+					for (uint8_t i=0; i<3; i++)
+					{
+						g_projector_para.current.r[i] = pData[PACKAGE_DATA_BASE + i*3 + 1];
+						g_projector_para.current.g[i] = pData[PACKAGE_DATA_BASE + i*3 + 2];
+						g_projector_para.current.b[i] = pData[PACKAGE_DATA_BASE + i*3 + 3];	
+					}	
+				}
+				
+				Uart_Set_RGB_Current(g_projector_para.current.r[g_projector_para.current.index], 
+														g_projector_para.current.g[g_projector_para.current.index],g_projector_para.current.b[g_projector_para.current.index]);				
 				break;
 			}
 			
@@ -592,6 +635,7 @@ void Uart_Save_Parameter(uint8_t type)
 
 void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 {
+	uint8_t ret = HAL_OK;
 	uint8_t buf[UART_BUFFER_MAX_SIZE];
   uint16_t reg, reg_count;
 	uint16_t check;
@@ -638,22 +682,31 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Uart_Cmd_ReadReg(head->command, reg, buf, reg_count);
 			break;
 		}	
+
+		case CMD_SET_COLOR_TEMP:
+		{
+			if(pRx[PACKAGE_DATA_BASE] < CURRENT_MAX)
+			{
+				g_projector_para.current.index = pRx[PACKAGE_DATA_BASE];
+				ret = Uart_Set_RGB_Current(g_projector_para.current.r[g_projector_para.current.index], 
+							g_projector_para.current.g[g_projector_para.current.index],g_projector_para.current.b[g_projector_para.current.index]);				
+			}
+			
+			if(ret != HAL_OK || pRx[PACKAGE_DATA_BASE] >= CURRENT_MAX)
+			{				
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+				break;
+			}
+			
+			Uart_Send_Response(head->command, NULL, 0);
+			
+			SetParameter(&g_projector_para);
+			break;			
+		}	
 		
 		case CMD_SET_CURRENTS:
 		{
-			uint8_t ret = SetRedCurrent(pRx[PACKAGE_DATA_BASE]);
-			if(ret != HAL_OK)
-			{				
-				Uart_Send_Response(CMD_ERROR, NULL, 0);
-				break;
-			}
-			ret = SetGreenCurrent(pRx[PACKAGE_DATA_BASE + 1]);
-			if(ret != HAL_OK)
-			{				
-				Uart_Send_Response(CMD_ERROR, NULL, 0);
-				break;
-			}
-			ret = SetBlueCurrent(pRx[PACKAGE_DATA_BASE + 2]);
+			uint8_t ret = Uart_Set_RGB_Current(pRx[PACKAGE_DATA_BASE], pRx[PACKAGE_DATA_BASE + 1], pRx[PACKAGE_DATA_BASE + 2]);
 			if(ret != HAL_OK)
 			{				
 				Uart_Send_Response(CMD_ERROR, NULL, 0);
@@ -684,10 +737,10 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Motor_start(pRx[PACKAGE_DATA_BASE], steps);
 			break;			
 		}	
-		
+				
 		case CMD_SAVE_PARAMRTER:
 		{
-			Uart_Save_Parameter(pRx[PACKAGE_DATA_BASE]);
+			Uart_Save_Parameter(pRx);
 			Uart_Send_Response(head->command, NULL, 0);
 			break;			
 		}
@@ -722,7 +775,7 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			buf[3] = g_FanMode;
 			//GetFan5Speed();
 			//GetFan34Speed();
-			//GetThreePMotorSpeed();
+			//GetThreePMotorSpeed();CMD_SET_CURRENTS
 			Uart_Send_Response(head->command, buf, 4);			
 			break;			
 		}
@@ -736,6 +789,13 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			break;			
 		}
 
+		case CMD_GET_COLOR_TEMP:
+		{
+			buf[0] =  g_projector_para.current.index;
+			Uart_Send_Response(head->command, buf, 1);
+			break;			
+		}
+		
 		case CMD_ENTER_MAT:
 		{
 			Flag_MatMode = 1;

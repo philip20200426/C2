@@ -96,7 +96,7 @@ volatile _Bool Flag_Projector_On = 1;
 volatile _Bool Flag_LT9211_Int = 0;
 volatile _Bool g_FanMode = 0;
 volatile _Bool Flag_MatMode = 0;
-
+uint16_t g_overtemp_cnt = 0;
 uint32_t g_fan_value;
 
 void SysTaskDispatch(void);
@@ -105,6 +105,7 @@ extern void ThreePhaseMotorDriver_init(void);
 extern void LcosSetKst(void);
 extern void LcosSetWP(void);
 extern void LcosSetGamma(void);
+extern void LcosSetIntBCHS(void);
 extern void LcosSetGain(void);
 extern void LcosSetFlip(void);
 extern void LcosInitWec(void);
@@ -227,6 +228,7 @@ int main(void)
   LcosSetIntPattern();
 	LcosSetRRGGBBGGMode();
 	LcosInitGamma();
+	LcosSetIntBCHS();
 	
 	LcosSetFlip();
 	LcosSetKst();
@@ -614,30 +616,30 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 /*-------------------------------------------------------------------------------------------*/	
 const uint8_t LD_CTL_TABLE[][2] =
 {/* 0~55   45*/	
-	{30, 10},		
-	{31, 10},	
-	{32, 10},	
-	{33, 10},	
-	{34, 10},
-	{35, 10},
-	{36, 10},	
-	{37, 10},	
-	{38, 10},	
-	{39, 10},	
-	{40, 10},	
-	{41, 10},	
+	{30, 20},		
+	{31, 20},	
+	{32, 20},	
+	{33, 20},	
+	{34, 20},
+	{35, 20},
+	{36, 20},	
+	{37, 20},	
+	{38, 20},	
+	{39, 20},	
+	{40, 20},	
+	{41, 20},	
 	{42, 20},	
 	{43, 30},	
 	{44, 40},
-	{45, 45},	
-	{46, 50},	
-	{47, 55},	
-	{48, 60},	
-	{49, 65},	
+	{45, 40},	
+	{46, 40},	
+	{47, 40},	
+	{48, 50},	
+	{49, 60},	
 	{50, 70},	
 	{51, 75},	
-	{52, 80},	
-	{53, 85},	
+	{52, 70},	
+	{53, 80},	
 	{54, 90},
 	{55, 100},	
 	{56, 100},	
@@ -662,36 +664,36 @@ uint8_t get_ld_fanpwm(uint8_t temp)
 }
 
 const uint8_t LCOS_CTL_TABLE[][2] =
-{/*+45 to +55*/
-	{30, 10},	
-	{31, 10},	
-	{32, 10},	
-	{33, 10},	
-	{34, 10},
-	{35, 10},
-	{36, 10},	
-	{37, 10},	
-	{38, 10},	
-	{39, 10},	
-	{40, 10},	
-	{41, 10},	
-	{42, 10},	
+{/*-10~60    +45 to +55 */
+	{30, 20},	
+	{31, 20},	
+	{32, 20},	
+	{33, 20},	
+	{34, 20},
+	{35, 20},
+	{36, 20},	
+	{37, 20},	
+	{38, 20},	
+	{39, 20},	
+	{40, 20},	
+	{41, 20},	
+	{42, 20},	
 	{43, 20},	
-	{44, 25},
-	{45, 30},	
-	{46, 35},	
-	{47, 40},	
-	{48, 45},	
-	{49, 50},	
-	{50, 55},	
-	{51, 60},	
-	{52, 65},	
-	{53, 70},	
-	{54, 75},
-	{55, 80},	
-	{56, 85},	
-	{57, 90},	
-	{58, 95},	
+	{44, 20},
+	{45, 20},	
+	{46, 20},	
+	{47, 20},	
+	{48, 20},	
+	{49, 20},	
+	{50, 20},	
+	{51, 25},	
+	{52, 30},	
+	{53, 40},	
+	{54, 50},
+	{55, 60},	
+	{56, 70},	
+	{57, 80},	
+	{58, 90},	
 	{59, 100},	
 	{60, 100}
 };
@@ -722,7 +724,7 @@ void SysTask5s(void)
 	lcos_temp = GetLcos_RT_Temp(lcos_adc);
 	printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
 	//GetFanSpeed();
-
+#if 1
 	if(!g_FanMode)
 	{
 		if(Flag_Projector_On == 1)
@@ -734,6 +736,9 @@ void SysTask5s(void)
 		
 		if(ld_temp > 55 || lcos_temp > 60)
 		{  	
+			g_overtemp_cnt++;
+			if(g_overtemp_cnt > 12)
+			{
 				if(Flag_Projector_On != 0)
 				{
 					Flag_Projector_On = 0;
@@ -742,16 +747,22 @@ void SysTask5s(void)
 					SetFan34Speed(FAN_SPEED_FULL);
 					SetFan5Speed(FAN_SPEED_FULL);	
 				}	
+			}
 		}
-		else if(ld_temp < 45 && lcos_temp < 50)
+		else 
 		{
+			g_overtemp_cnt = 0;
+			if(ld_temp < 45 && lcos_temp < 50)
+			{
 				if(Flag_Projector_On != 1)
 				{
 					Flag_Projector_On = 1;
 					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 				}	
+			}
 		}
 	}
+#endif
 }
 
 void SysTaskDispatch(void)

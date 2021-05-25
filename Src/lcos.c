@@ -3786,6 +3786,13 @@ void LcosSetIntPattern(void)
   I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1480, 0x00);
 }
 
+void LcosSetIntBCHS(void)
+{
+  I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1600, 0x02);
+  I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1630, 0x02);
+  I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x1620, 0x00);	
+}
+
 void LcosInitSequence(void)
 #if 1
 {  

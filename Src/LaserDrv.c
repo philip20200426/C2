@@ -200,9 +200,9 @@ void SetRGBCurrent(void)
 	
 	if(g_projector_para.current.valid == PARAMETER_VALID)
 	{
-		RedCurrent 	= g_projector_para.current.r;
-		GreenCurrent = g_projector_para.current.g;
-		BlueCurrent 	= g_projector_para.current.b;
+		RedCurrent 	= g_projector_para.current.r[g_projector_para.current.index];
+		GreenCurrent = g_projector_para.current.g[g_projector_para.current.index];
+		BlueCurrent 	= g_projector_para.current.b[g_projector_para.current.index];
 	}
 	else
 	{
@@ -210,7 +210,7 @@ void SetRGBCurrent(void)
 		GreenCurrent = DEFAULT_G_VAL;
 		BlueCurrent 	= DEFAULT_B_VAL;
 	}
-	//printf("rgb:0x%x 0x%x 0x%x \r\n",RedCurrent, GreenCurrent, BlueCurrent);
+	printf("set rgb:0x%x 0x%x 0x%x \r\n",RedCurrent, GreenCurrent, BlueCurrent);
 	SetRedCurrent(RedCurrent);
   SetGreenCurrent(GreenCurrent);
   SetBlueCurrent(BlueCurrent);

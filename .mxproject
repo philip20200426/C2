@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=F:/zyz/workSpace/A100STM32G0Driver_DebugBridge/Inc
+HeaderPath=F:/zyz/workSpace/A100STM32G0Driver/Inc
 HeaderFiles=gpio.h;stm32g0xx_it.h;stm32g0xx_hal_conf.h;main.h;tim.h;FreeRTOSConfig.h;i2c.h;usart.h;adc.h;dma.h;
-SourcePath=F:/zyz/workSpace/A100STM32G0Driver_DebugBridge/Src
+SourcePath=F:/zyz/workSpace/A100STM32G0Driver/Src
 SourceFiles=gpio.c;stm32g0xx_it.c;stm32g0xx_hal_msp.c;main.c;tim.c;app_freertos.c;i2c.c;usart.c;adc.c;dma.c;
 
 [PreviousLibFiles]

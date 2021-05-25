@@ -41,10 +41,12 @@
 #define CMD_GET_FANS						21
 #define CMD_GET_VERSION					22
 #define CMD_GET_TEMPS						23
+#define CMD_GET_COLOR_TEMP			24
 
 #define CMD_SET_CURRENTS				30
 #define CMD_SET_FANS						31
 #define CMD_SET_FOCUSMOTOR			32
+#define CMD_SET_COLOR_TEMP			34
 
 #define CMD_SAVE_PARAMRTER			40
 
@@ -100,13 +102,24 @@ typedef enum
 	PARA_WP,
 	PARA_MAX	
 }PARA_Type;
+
+typedef enum
+{
+	CURRENT_NORMAL = 0,
+	CURRENT_COOL,
+	CURRENT_WARM,
+	CURRENT_USER,
+	CURRENT_MAX	
+}CURRENT_Type;
 /* Private variables ---------------------------------------------------------*/
-struct Parameter_Curent
+
+struct Parameter_Current
 {
     uint8_t  valid;
-    uint16_t  r;
-    uint16_t  g;
-    uint16_t  b;	
+    uint8_t  index;
+    uint16_t  r[4];
+    uint16_t  g[4];
+    uint16_t  b[4];	
 };
 
 struct Parameter_Gain
@@ -143,12 +156,13 @@ struct Parameter_Wp
 };
 
 struct Projector_parameter{
-		struct Parameter_Curent current;
+		struct Parameter_Current current;
 		struct Parameter_Gain gain;
 		struct Parameter_Flip flip;
 		struct Parameter_Kst kst;
 		struct Parameter_Gama gama;
 		struct Parameter_Wp wp;	
+		uint8_t  Reserved[8];
 };
 
 struct PACKAGE_HEAD
