@@ -196,7 +196,13 @@ void SetRGBCurrent(void)
 	uint16_t RedCurrent;
 	uint16_t GreenCurrent;	
 	uint16_t BlueCurrent;	
-
+	uint8_t retry_cnt = 50;
+	
+	while(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_15) != GPIO_PIN_SET && retry_cnt--)
+	{
+		HAL_Delay(100);
+	}
+	HAL_Delay(100);
 	
 	if(g_projector_para.current.valid == PARAMETER_VALID)
 	{
@@ -210,7 +216,7 @@ void SetRGBCurrent(void)
 		GreenCurrent = DEFAULT_G_VAL;
 		BlueCurrent 	= DEFAULT_B_VAL;
 	}
-	printf("set rgb:0x%x 0x%x 0x%x \r\n",RedCurrent, GreenCurrent, BlueCurrent);
+	printf("set rgb:%d %d %d  retry_cnt:%d \r\n",RedCurrent, GreenCurrent, BlueCurrent, 50 - retry_cnt);
 	SetRedCurrent(RedCurrent);
   SetGreenCurrent(GreenCurrent);
   SetBlueCurrent(BlueCurrent);
