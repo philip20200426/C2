@@ -197,7 +197,7 @@ void SetRGBCurrent(void)
 	uint16_t GreenCurrent;	
 	uint16_t BlueCurrent;	
 	uint8_t retry_cnt = 50;
-	
+	//MB_GPIO0 
 	while(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_15) != GPIO_PIN_SET && retry_cnt--)
 	{
 		HAL_Delay(100);

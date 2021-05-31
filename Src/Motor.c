@@ -23,6 +23,7 @@ void MotorLimit_DealWith(uint8_t lr)
 }
 
 #ifndef MOTOR_DRV8428
+//A3916
 uint32_t MotorStepcnt = 0;
 uint8_t MotorDirection = 0;
 uint8_t MotorStep = 0;
@@ -273,8 +274,8 @@ void StepperVar_Init(void)
 
 void Motor_Stop(void)
 {
-	HAL_TIM_PWM_Stop_IT(&htim1,TIM_CHANNEL_1);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET); //enter sleep	
+	HAL_TIM_PWM_Stop_IT(&htim16,TIM_CHANNEL_1);
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_8, GPIO_PIN_RESET); //enter sleep	
 }
 
 void MotorStop_UartRes(uint8_t result)
@@ -292,10 +293,10 @@ uint8_t Motor_start(uint8_t dir, uint16_t steps)
 	HAL_Delay(1);
 
 	gStepper.num_steps = steps;
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_SET); //exit SLEEP
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_8, GPIO_PIN_SET); //exit SLEEP
 	
-	//HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);	
-	HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
+	//HAL_TIM_OC_Start_IT(&htim16, TIM_CHANNEL_1);	
+	HAL_TIM_PWM_Start_IT(&htim16, TIM_CHANNEL_1);
 	return 0;
 }
 
@@ -310,7 +311,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 		gStepper.count_steps ++;
 		if(gStepper.count_steps == gStepper.num_steps) 
 		{
-			HAL_TIM_OC_Stop_IT(&htim1, TIM_CHANNEL_1);
+			HAL_TIM_OC_Stop_IT(&htim16, TIM_CHANNEL_1);
 		}
 		printf("ReadStepsValue: %d \r\n",gStepper.count_steps);
 	}

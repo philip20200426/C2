@@ -27,8 +27,10 @@ extern uint8_t ReadReg_10983(uint8_t RegAddr);
 extern uint8_t GetRGBCurrent(uint8_t rgb);
 
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
-uint8_t GetFan12Speed(void);
-uint8_t GetFan34Speed(void);
+uint8_t GetFan1Speed(void);
+uint8_t GetFan2Speed(void);
+uint8_t GetFan3Speed(void);
+uint8_t GetFan4Speed(void);
 uint8_t GetFan5Speed(void);
 uint8_t GetThreePMotorSpeed(void);
 /* Private variables ---------------------------------------------------------*/
@@ -773,9 +775,12 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			buf[1] =  g_fan34_speed;
 			buf[2] =  g_fan5_speed;
 			buf[3] = g_FanMode;
-			//GetFan5Speed();
-			//GetFan34Speed();
-			//GetThreePMotorSpeed();CMD_SET_CURRENTS
+			GetFan1Speed();
+			GetFan2Speed();
+			GetFan3Speed();
+			GetFan4Speed();
+			GetFan5Speed();			
+			//GetThreePMotorSpeed();
 			Uart_Send_Response(head->command, buf, 4);			
 			break;			
 		}
@@ -1292,15 +1297,15 @@ uint8_t SetFan5Speed(uint32_t speed)
   sConfigOC.Pulse = FanSpeedConvert(speed);
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  HAL_TIM_PWM_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
+  HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 
   return 0;
 }
 
 #if 1
-static uint8_t fan5_capCnt, fan12_capCnt, fan34_capCnt, ThreePMotor_capCnt;
-static uint16_t fan5_capBuf[3], fan12_capBuf[3], fan34_capBuf[3], ThreePMotor_capBuf[3];
+static uint8_t fan1_capCnt, fan2_capCnt, fan3_capCnt, fan4_capCnt, fan5_capCnt, ThreePMotor_capCnt;
+static uint16_t fan1_capBuf[3], fan2_capBuf[3],fan3_capBuf[3], fan4_capBuf[3],  fan5_capBuf[3], ThreePMotor_capBuf[3];
 
 #define TESTSPEED_BASE   30000000
 
@@ -1322,66 +1327,113 @@ uint8_t GetThreePMotorSpeed(void)
 	{
 		T_time =  ThreePMotor_capBuf[2] - ThreePMotor_capBuf[0];
 		speed = TESTSPEED_BASE/T_time;
-		printf("GetThreePMotorSpeed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	}
-
+	
+	printf("GetThreePMotorSpeed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);
 	return speed;
 }
 
-uint8_t GetFan12Speed(void) //PA8 timer1_ch1
+uint8_t GetFan1Speed(void) //PA8 timer1_ch1
 {
 	uint16_t count = 1000, speed = 0, T_time;
 	
-		__HAL_TIM_SET_CAPTUREPOLARITY(&htim17, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-		HAL_TIM_IC_Start_IT(&htim17, TIM_CHANNEL_1);		
-		fan12_capCnt = 1;
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);		
+		fan1_capCnt = 1;
 	
 	/* waiting convert complete */
-	while(count && fan12_capCnt != 4 ) {
+	while(count && fan1_capCnt != 4 ) {
 		HAL_Delay(1);
 		count--;
 	}
 	
 	if(count != 0)
 	{
-		T_time =  fan12_capBuf[2] - fan12_capBuf[0];
+		T_time =  fan1_capBuf[2] - fan1_capBuf[0];
 		speed = TESTSPEED_BASE/T_time;
-		printf("GetFan12Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	}
 
+	printf("GetFan1Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);
 	return speed;
 }
 
-uint8_t GetFan34Speed(void)
+uint8_t GetFan2Speed(void) //PB3 timer1_ch2
 {
 	uint16_t count = 1000, speed = 0, T_time;
 	
-		__HAL_TIM_SET_CAPTUREPOLARITY(&htim16, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-		HAL_TIM_IC_Start_IT(&htim16, TIM_CHANNEL_1);		
-		fan34_capCnt = 1;
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2);		
+		fan2_capCnt = 1;
 	
 	/* waiting convert complete */
-	while(count && fan34_capCnt != 4 ) {
+	while(count && fan2_capCnt != 4 ) {
 		HAL_Delay(1);
 		count--;
 	}
 	
 	if(count != 0)
 	{
-		T_time =  fan34_capBuf[2] - fan34_capBuf[0];
+		T_time =  fan2_capBuf[2] - fan2_capBuf[0];
 		speed = TESTSPEED_BASE/T_time;
-		printf("GetFan34Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	}
 
+	printf("GetFan2Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	return speed;
 }
-
-uint8_t GetFan5Speed(void)
+uint8_t GetFan3Speed(void) //PC10 timer1_ch3
 {
 	uint16_t count = 1000, speed = 0, T_time;
 	
-		__HAL_TIM_SET_CAPTUREPOLARITY(&htim17, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-		HAL_TIM_IC_Start_IT(&htim17, TIM_CHANNEL_1);		
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_3, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_3);		
+		fan3_capCnt = 1;
+	
+	/* waiting convert complete */
+	while(count && fan3_capCnt != 4 ) {
+		HAL_Delay(1);
+		count--;
+	}
+	
+	if(count != 0)
+	{
+		T_time =  fan3_capBuf[2] - fan3_capBuf[0];
+		speed = TESTSPEED_BASE/T_time;
+	}
+
+	printf("GetFan3Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
+	return speed;
+}
+
+uint8_t GetFan4Speed(void) //PC11 timer1_ch4
+{
+	uint16_t count = 1000, speed = 0, T_time;
+	
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);		
+		fan4_capCnt = 1;
+	
+	/* waiting convert complete */
+	while(count && fan4_capCnt != 4 ) {
+		HAL_Delay(1);
+		count--;
+	}
+	
+	if(count != 0)
+	{
+		T_time =  fan4_capBuf[2] - fan4_capBuf[0];
+		speed = TESTSPEED_BASE/T_time;
+	}
+	
+	printf("GetFan4Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
+	return speed;
+}
+
+uint8_t GetFan5Speed(void) //PC1 timer15_ch1
+{
+	uint16_t count = 1000, speed = 0, T_time;
+	
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim15, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_1);		
 		fan5_capCnt = 1;
 	
 	/* waiting convert complete */
@@ -1394,9 +1446,9 @@ uint8_t GetFan5Speed(void)
 	{
 		T_time =  fan5_capBuf[2] - fan5_capBuf[0];
 		speed = TESTSPEED_BASE/T_time;
-		printf("GetFan5Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	}
-
+	
+	printf("GetFan5Speed  speed:%d T_time:%d count:%d \r\n", speed, T_time, count);	
 	return speed;
 }
 
@@ -1404,7 +1456,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	if(TIM14 == htim->Instance)
 	{
-		printf("HAL_TIM_IC_CaptureCallback  ThreePMotor_capCnt:%d !!! \r\n", ThreePMotor_capCnt);
+		//printf("HAL_TIM_IC_CaptureCallback  ThreePMotor_capCnt:%d !!! \r\n", ThreePMotor_capCnt);
 		switch(ThreePMotor_capCnt){
 			case 1:
 				ThreePMotor_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim14,TIM_CHANNEL_1);
@@ -1426,49 +1478,110 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 		}			
 	}
 	
-	if(TIM16 == htim->Instance)
+	if(TIM1 == htim->Instance)
 	{
-		printf("HAL_TIM_IC_CaptureCallback  fan34_capCnt:%d !!! \r\n", fan34_capCnt);
-		switch(fan34_capCnt){
+		//printf("HAL_TIM_IC_CaptureCallback  fan1_capCnt:%d fan2_capCnt:%d fan3_capCnt:%d fan4_capCnt:%d !!! \r\n", fan1_capCnt,fan2_capCnt,fan3_capCnt,fan4_capCnt);
+		switch(fan1_capCnt){
 			case 1:
-				fan34_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim16,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim16,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
-				fan34_capCnt++;
+				fan1_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
+				fan1_capCnt++;
 				break;
 			
 			case 2:
-				fan34_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim16,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim16, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-				fan34_capCnt++;  
+				fan1_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan1_capCnt++;  
 				break;		
 			
 			case 3:
-				fan34_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim16,TIM_CHANNEL_1);
-				HAL_TIM_IC_Stop_IT(&htim16,TIM_CHANNEL_1);
-				fan34_capCnt++;  
+				fan1_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
+				HAL_TIM_IC_Stop_IT(&htim1,TIM_CHANNEL_1);
+				fan1_capCnt++;  
 				break;
-		}			
+		}	
+		
+		switch(fan2_capCnt){
+			case 1:
+				fan2_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_2);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1,TIM_CHANNEL_2,TIM_ICPOLARITY_FALLING);
+				fan2_capCnt++;
+				break;
+			
+			case 2:
+				fan2_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_2);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan2_capCnt++;  
+				break;		
+			
+			case 3:
+				fan2_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_2);
+				HAL_TIM_IC_Stop_IT(&htim1,TIM_CHANNEL_2);
+				fan2_capCnt++;  
+				break;
+		}	
+
+		switch(fan3_capCnt){
+			case 1:
+				fan3_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_3);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1,TIM_CHANNEL_3,TIM_ICPOLARITY_FALLING);
+				fan3_capCnt++;
+				break;
+			
+			case 2:
+				fan3_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_3);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_3, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan3_capCnt++;  
+				break;		
+			
+			case 3:
+				fan3_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_3);
+				HAL_TIM_IC_Stop_IT(&htim1,TIM_CHANNEL_3);
+				fan3_capCnt++;  
+				break;
+		}	
+		
+		switch(fan4_capCnt){
+			case 1:
+				fan4_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_4);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1,TIM_CHANNEL_4,TIM_ICPOLARITY_FALLING);
+				fan4_capCnt++;
+				break;
+			
+			case 2:
+				fan4_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_4);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan4_capCnt++;  
+				break;		
+			
+			case 3:
+				fan4_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_4);
+				HAL_TIM_IC_Stop_IT(&htim1,TIM_CHANNEL_4);
+				fan4_capCnt++;  
+				break;
+		}	
+				
 	}
 		
-	if(TIM17 == htim->Instance)
+	if(TIM15 == htim->Instance)
 	{
 		//printf("HAL_TIM_IC_CaptureCallback  fan5_capCnt:%d !!! \r\n", fan5_capCnt);
 		switch(fan5_capCnt){
 			case 1:
-				fan5_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim17,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim17,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
+				fan5_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim15,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim15,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
 				fan5_capCnt++;
 				break;
 			
 			case 2:
-				fan5_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim17,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim17, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan5_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim15,TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim15, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
 				fan5_capCnt++;  
 				break;		
 			
 			case 3:
-				fan5_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim17,TIM_CHANNEL_1);
-				HAL_TIM_IC_Stop_IT(&htim17,TIM_CHANNEL_1);
+				fan5_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim15,TIM_CHANNEL_1);
+				HAL_TIM_IC_Stop_IT(&htim15,TIM_CHANNEL_1);
 				fan5_capCnt++;  
 				break;			
 		}

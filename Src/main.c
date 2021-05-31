@@ -202,7 +202,6 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM1_Init();
   MX_TIM16_Init();
-  MX_TIM17_Init();
   MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 	printf("main() Projector_parameter size=%d \r\n",sizeof(struct Projector_parameter));
