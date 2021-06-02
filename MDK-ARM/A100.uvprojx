@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32G070xx,USE_HAL_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                                                      ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                                      ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                                      ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
+              <IncludePath>../Inc;                                                                                                           ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                                           ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                                           ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -443,6 +443,11 @@
               <FilePath>../Src/i2c.c</FilePath>
             </File>
             <File>
+              <FileName>iwdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/iwdg.c</FilePath>
+            </File>
+            <File>
               <FileName>tim.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/tim.c</FilePath>
@@ -506,6 +511,11 @@
               <FileName>stm32g0xx_hal_i2c_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_i2c_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g0xx_hal_iwdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_iwdg.c</FilePath>
             </File>
             <File>
               <FileName>stm32g0xx_hal_tim.c</FileName>

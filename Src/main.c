@@ -23,6 +23,7 @@
 #include "adc.h"
 #include "dma.h"
 #include "i2c.h"
+#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -202,6 +203,7 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM1_Init();
   MX_TIM16_Init();
+  //MX_IWDG_Init();
   MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 	printf("main() Projector_parameter size=%d \r\n",sizeof(struct Projector_parameter));
@@ -239,6 +241,8 @@ int main(void)
 	LT89121_Reset();
 	SetBootPinMode();
 	ReceiveUart1Data();
+	
+  MX_IWDG_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -249,6 +253,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     SysTaskDispatch();
+		
   }
   /* USER CODE END 3 */
 }
@@ -268,10 +273,11 @@ void SystemClock_Config(void)
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
@@ -416,6 +422,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	  {
 				Flag512ms = 1;
 				Counter512ms = 0;
+				/* Refresh the IWDG 2S overflow*/
+				HAL_IWDG_Refresh(&hiwdg);
   	  }
   	  if(TIME_BASE_50US_1S == ++Counter1s)
   	  {
