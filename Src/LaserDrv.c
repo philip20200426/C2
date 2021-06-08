@@ -11,7 +11,7 @@
 #include "serial_communication.h"
 
 uint16_t g_RGBCurrent[3];
-extern struct Projector_parameter  g_projector_para;
+extern struct Projector_Color_Temp * g_pColorTemp;
 
 #define TPL1401_RLED_I2C_ADDR 0x90
 #define TPL1401_GLED_I2C_ADDR 0x92
@@ -203,12 +203,12 @@ void SetRGBCurrent(void)
 		HAL_Delay(100);
 	}
 	HAL_Delay(100);
-	
-	if(g_projector_para.current.valid == PARAMETER_VALID)
+
+	if(g_pColorTemp->current.valid == PARAMETER_VALID)
 	{
-		RedCurrent 	= g_projector_para.current.r[g_projector_para.current.index];
-		GreenCurrent = g_projector_para.current.g[g_projector_para.current.index];
-		BlueCurrent 	= g_projector_para.current.b[g_projector_para.current.index];
+		RedCurrent 	= g_pColorTemp->current.r;
+		GreenCurrent = g_pColorTemp->current.g;
+		BlueCurrent 	= g_pColorTemp->current.b;
 	}
 	else
 	{

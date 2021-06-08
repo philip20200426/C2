@@ -36,6 +36,10 @@ uint8_t GetThreePMotorSpeed(void);
 /* Private variables ---------------------------------------------------------*/
 uint16_t g_fan12_speed,g_fan34_speed,g_fan5_speed;
 struct Projector_parameter  g_projector_para;
+//uint8_t g_flash_buf[FLASH_PAGE_SIZE];
+//struct Projector_Color_Temp * g_pColorTemp = (struct Projector_Color_Temp *)g_flash_buf;
+struct Projector_Color_Temp g_color_temp;
+struct Projector_Color_Temp * g_pColorTemp = (struct Projector_Color_Temp *)&g_color_temp;
 
 volatile uint8_t UartReceiveRxBuffer[UART_BUFFER_MAX_SIZE] = {0};
 volatile uint8_t UartTempBuffer[UART_BUFFER_MAX_SIZE] = {0};
@@ -305,7 +309,6 @@ void GetParameter(void)
 		Address += 4;
 	}
 #if 0	
-	printf("current:0x%x \r\n",g_projector_para.current.valid);
 	printf("rgb:0x%x 0x%x 0x%x \r\n",g_projector_para.current.r, g_projector_para.current.g, g_projector_para.current.b);
 	printf("kst:0x%x \r\n",g_projector_para.kst.valid);	
 	printf("flip:0x%x \r\n",g_projector_para.flip.valid);
@@ -315,7 +318,35 @@ void GetParameter(void)
 	return;
 }
 
-void SetParameter(struct Projector_parameter  *g_projector_parameter )
+
+void GetColorTempParameter(void)
+{
+	uint32_t *Projector_Config;
+	uint32_t i;
+	uint32_t Address = FLASH_COLORTEMP_START_ADDR;	
+	
+	/* Check the correctness of written data */
+	Projector_Config = (uint32_t *)&g_color_temp;
+	Address = FLASH_COLORTEMP_START_ADDR;
+	printf("GetColorTempParameter() size=%d \r\n",sizeof(struct Projector_Color_Temp));
+
+	for(i=0; i<sizeof(struct Projector_Color_Temp)/4; i++)
+	{
+		Projector_Config[i] = *(__IO uint32_t*) Address	;
+		Address += 4;
+	}
+
+#if 1	
+	printf("current:0x%x \r\n",g_color_temp.current.valid);
+	printf("misc:0x%x \r\n",g_color_temp.reg_misc.valid);
+	printf("241:0x%x \r\n",g_color_temp.reg_241.valid);
+	printf("led:0x%x \r\n",g_color_temp.reg_led.valid);
+	printf("frc:0x%x \r\n",g_color_temp.reg_frc.valid);
+#endif
+	return;
+}
+
+void SetParameter(void)
 {
 	uint32_t FirstPage = 0, NbOfPages = 0;
 	uint32_t Address = 0, PageError = 0;
@@ -323,7 +354,7 @@ void SetParameter(struct Projector_parameter  *g_projector_parameter )
 	uint64_t *projector_Config;
 	uint32_t i;
 
-	projector_Config =  (uint64_t *)g_projector_parameter;
+	projector_Config =  (uint64_t *)&g_projector_para;
 
   /* Unlock the Flash to enable the flash control register access *************/
   HAL_FLASH_Unlock();
@@ -382,6 +413,89 @@ void SetParameter(struct Projector_parameter  *g_projector_parameter )
 	return;
 }
 
+_Bool SetUserParameter(void *buf, uint32_t size, uint32_t user_start_addr, uint32_t user_end_addr)
+{
+	uint32_t FirstPage = 0, NbOfPages = 0;
+	uint32_t Address = 0, PageError = 0;
+	FLASH_EraseInitTypeDef EraseInitStruct;
+	uint64_t *projector_Config;
+	uint32_t i;
+
+	projector_Config =  (uint64_t *)buf;
+
+  /* Unlock the Flash to enable the flash control register access *************/
+  HAL_FLASH_Unlock();
+  
+  /* Erase the user Flash area
+    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+  /* Get the 1st page to erase */
+  FirstPage = GetPage(user_start_addr);
+
+  /* Get the number of pages to erase from 1st page */
+  NbOfPages = GetPage(user_end_addr) - FirstPage + 1;
+
+  /* Fill EraseInit structure*/
+  EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+  EraseInitStruct.Page        = FirstPage;
+  EraseInitStruct.NbPages     = NbOfPages;	
+	
+	printf("SetUserParameter FirstPage[%d] NbOfPages[%d]\r\n",FirstPage, NbOfPages);
+ 
+  /* Note: If an erase operation in Flash memory also concerns data in the data or instruction cache,
+     you have to make sure that these data are rewritten before they are accessed during code
+     execution. If this cannot be done safely, it is recommended to flush the caches by setting the
+     DCRST and ICRST bits in the FLASH_CR register. */
+  if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+  {
+    /*
+      Error occurred while page erase.
+      User can add here some code to deal with this error.
+      PageError will contain the faulty page and then to know the code error on this page,
+      user can call function 'HAL_FLASH_GetError()'
+    */
+		printf("SetUserParameter:HAL_FLASHEx_Erase errcode[%d]\r\n",HAL_FLASH_GetError());
+		HAL_FLASH_Lock();
+		return 1;
+  }
+  /* Program the user Flash area word by word
+    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+  Address = user_start_addr;
+	for(i=0 ;i<size/8 ;i++)
+	{
+		if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, Address, *projector_Config) == HAL_OK)
+		{
+			Address = Address + 8;
+			projector_Config = projector_Config + 1;
+		} else {
+		/* Error occurred while writing data in Flash memory.
+			 User can add here some code to deal with this error */
+			printf("SetUserParameter: HAL_FLASH_Program errcode[%d]\r\n",HAL_FLASH_GetError());	
+			HAL_FLASH_Lock();
+			return 1;				
+		}
+	}
+
+  /* Lock the Flash to disable the flash control register access (recommended
+     to protect the FLASH memory against possible unwanted operation) *********/
+  HAL_FLASH_Lock();
+	
+	printf("SetUserParameter OK!\r\n");
+	return 0;
+}
+
+_Bool SetUserParameterEx(void *buf,  uint32_t size, uint32_t user_start_addr, uint32_t user_end_addr)
+{
+	uint8_t retry_cnt = 3;
+	
+	while(retry_cnt --) {
+			if(SetUserParameter(buf, size, user_start_addr, user_end_addr) == 0)
+				return 0;
+	}	
+	
+	return 1;
+}
 
 HAL_StatusTypeDef SetBootPinMode(void)
 {
@@ -459,7 +573,7 @@ unsigned short checksum(unsigned char* pdata, unsigned short size)
 }
 
 
-void Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
+_Bool Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
 {
 		uint8_t ret;
 	
@@ -485,9 +599,15 @@ void Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t cou
 		}
 		
 		if(ret != HAL_OK)
-			Uart_Send_Response(CMD_ERROR, NULL, 0);	
+		{
+			Uart_Send_Response(CMD_ERROR, NULL, 0);
+			return 0;
+		}
 		else		
-			Uart_Send_Response(cmd, NULL, 0);		
+		{
+			Uart_Send_Response(cmd, NULL, 0);	
+			return 1;
+		}
 }
 
 void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
@@ -552,34 +672,21 @@ uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t cu
 
 void Uart_Save_Parameter(uint8_t* pData)
 {
-		uint8_t data_len = pData[PACKAGE_DATA_BASE - 3];
+		//uint8_t data_len = pData[PACKAGE_DATA_BASE - 3];
 		uint8_t type = pData[PACKAGE_DATA_BASE];
+		uint16_t i;
 	
 		switch(type)
 		{
 			case PARA_CURRENT:
 			{
-				if(data_len == 1)//user parameter
-				{
-					g_projector_para.current.valid = PARAMETER_VALID;
-					g_projector_para.current.index = CURRENT_USER;
-					g_projector_para.current.r[CURRENT_USER] = g_RGBCurrent[0];
-					g_projector_para.current.g[CURRENT_USER] = g_RGBCurrent[1];
-					g_projector_para.current.b[CURRENT_USER] = g_RGBCurrent[2];	
-				}	else if(data_len == 10){//tunning parameter
-					g_projector_para.current.valid = PARAMETER_VALID;
-					g_projector_para.current.index = CURRENT_NORMAL;
-					
-					for (uint8_t i=0; i<3; i++)
-					{
-						g_projector_para.current.r[i] = pData[PACKAGE_DATA_BASE + i*3 + 1];
-						g_projector_para.current.g[i] = pData[PACKAGE_DATA_BASE + i*3 + 2];
-						g_projector_para.current.b[i] = pData[PACKAGE_DATA_BASE + i*3 + 3];	
-					}	
-				}
-				
-				Uart_Set_RGB_Current(g_projector_para.current.r[g_projector_para.current.index], 
-														g_projector_para.current.g[g_projector_para.current.index],g_projector_para.current.b[g_projector_para.current.index]);				
+				g_pColorTemp->current.valid = PARAMETER_VALID;
+				g_pColorTemp->current.r = g_RGBCurrent[0];
+				g_pColorTemp->current.g = g_RGBCurrent[1];
+				g_pColorTemp->current.b = g_RGBCurrent[2];	
+	
+				Uart_Set_RGB_Current(g_pColorTemp->current.r, g_pColorTemp->current.g, g_pColorTemp->current.b); 	
+				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
 				break;
 			}
 			
@@ -588,13 +695,14 @@ void Uart_Save_Parameter(uint8_t* pData)
 				g_projector_para.flip.valid = PARAMETER_VALID;
 				I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x0090, &g_projector_para.flip.h);
 				I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x0091, &g_projector_para.flip.v);
+				SetParameter();
 				break;
 			}
 
 			case PARA_KST:
 			{
 				g_projector_para.kst.valid = PARAMETER_VALID;
-				for(uint16_t i = 0; i < KST_REG_NUM; i++) {
+				for(i = 0; i < KST_REG_NUM; i++) {
 					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x1A49+i, &g_projector_para.kst.val[i]);
 				}
 #if 0
@@ -605,25 +713,52 @@ void Uart_Save_Parameter(uint8_t* pData)
 				}	
 				printf("\r\n");
 #endif
+				SetParameter();
 				break;
 			}	
 			
-			case PARA_GAMA:
+			case PARA_COLOR_TEMP:
 			{
-				g_projector_para.gama.valid = PARAMETER_VALID;
-				for(uint8_t i = 0; i < GAMA_REG_NUM; i++) {
-					I2cReadSxmb241(SXRD241_I2C_ADDRESS, 0x58 + i, &g_projector_para.gama.val[i]);
+				g_pColorTemp->current.valid = PARAMETER_VALID;
+				g_pColorTemp->current.r = g_RGBCurrent[0];
+				g_pColorTemp->current.g = g_RGBCurrent[1];
+				g_pColorTemp->current.b = g_RGBCurrent[2];	
+				Uart_Set_RGB_Current(g_pColorTemp->current.r, g_pColorTemp->current.g, g_pColorTemp->current.b); 
+				
+				g_pColorTemp->reg_241.valid = PARAMETER_VALID;
+				for(i = 0; i < SXRD241_REG_NUM; i++) {
+					I2cReadSxmb241(SXRD241_I2C_ADDRESS, i, &g_pColorTemp->reg_241.val[i]);
 				}
+
+				g_pColorTemp->reg_misc.valid = PARAMETER_VALID;
+				for(i = 0; i < MISC_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_MISC_BASEADDRESS + i, &g_pColorTemp->reg_misc.val[i]);
+					//printf("FRC:0x%x -> 0x%x",CXD3554_MISC_BASEADDRESS + i, g_pColorTemp->reg_misc.val[i]);
+				}		
+				
+				g_pColorTemp->reg_led.valid = PARAMETER_VALID;
+				for(i = 0; i < LED_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_LED_BASEADDRESS + i, &g_pColorTemp->reg_led.val[i]);
+					//printf("FRC:0x%x -> 0x%x",CXD3554_LED_BASEADDRESS + i, g_pColorTemp->reg_led.val[i]);
+				}
+
+				g_pColorTemp->reg_frc.valid = PARAMETER_VALID;
+				for(i = 0; i < FRC_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_FRC_BASEADDRESS + i, &g_pColorTemp->reg_frc.val[i]);
+					//printf("FRC:0x%x -> 0x%x",CXD3554_FRC_BASEADDRESS + i, g_pColorTemp->reg_frc.val[i]);
+				}			
+				
+				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
 				break;
 			}		
 			
 			case PARA_WP:
 			{
 				g_projector_para.wp.valid = PARAMETER_VALID;
-				for(uint16_t i = 0; i < WP_REG_NUM; i++) {
+				for(i = 0; i < WP_REG_NUM; i++) {
 					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x3500+i, &g_projector_para.wp.val[i]);
 				}
-				
+				SetParameter();
 				break;
 			}		
 
@@ -631,13 +766,87 @@ void Uart_Save_Parameter(uint8_t* pData)
 		default:
 			break;
 		}
-		
-		SetParameter(&g_projector_para);	
+			
 }
+
+static void colortemp_clear_flag(uint8_t *para)
+{
+	*para = PARAMETER_INVALID;
+	SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);	
+}
+
+void Uart_Clear_Parameter(uint8_t* pData)
+{
+		uint8_t type = pData[PACKAGE_DATA_BASE];
+	
+		switch(type)
+		{
+			case PARA_CURRENT:
+			{
+				colortemp_clear_flag(&g_pColorTemp->current.valid);
+				break;
+			}
+			
+			case PARA_241:
+			{
+				colortemp_clear_flag(&g_pColorTemp->reg_241.valid);
+				break;
+			}
+			case PARA_MISC:
+			{
+				colortemp_clear_flag(&g_pColorTemp->reg_misc.valid);
+				break;
+			}	
+			case PARA_LED:
+			{
+				colortemp_clear_flag(&g_pColorTemp->reg_led.valid);
+				break;
+			}
+			case PARA_FRC:
+			{
+				colortemp_clear_flag(&g_pColorTemp->reg_frc.valid);
+				break;
+			}						
+			case PARA_FLIP:
+			{
+				g_projector_para.flip.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}
+
+			case PARA_KST:
+			{
+				g_projector_para.kst.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}	
+			
+			case PARA_COLOR_TEMP:
+			{
+				g_pColorTemp->current.valid = PARAMETER_INVALID;
+				g_pColorTemp->reg_241.valid = PARAMETER_INVALID;
+				g_pColorTemp->reg_led.valid = PARAMETER_INVALID;
+				g_pColorTemp->reg_frc.valid = PARAMETER_INVALID;
+				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
+				break;
+			}		
+			
+			case PARA_WP:
+			{
+				g_projector_para.wp.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}		
+
+		default:
+			break;
+		}
+}
+
 
 void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 {
-	uint8_t ret = HAL_OK;
+	//uint8_t ret = HAL_OK;
 	uint8_t buf[UART_BUFFER_MAX_SIZE];
   uint16_t reg, reg_count;
 	uint16_t check;
@@ -687,22 +896,7 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 
 		case CMD_SET_COLOR_TEMP:
 		{
-			if(pRx[PACKAGE_DATA_BASE] < CURRENT_MAX)
-			{
-				g_projector_para.current.index = pRx[PACKAGE_DATA_BASE];
-				ret = Uart_Set_RGB_Current(g_projector_para.current.r[g_projector_para.current.index], 
-							g_projector_para.current.g[g_projector_para.current.index],g_projector_para.current.b[g_projector_para.current.index]);				
-			}
-			
-			if(ret != HAL_OK || pRx[PACKAGE_DATA_BASE] >= CURRENT_MAX)
-			{				
-				Uart_Send_Response(CMD_ERROR, NULL, 0);
-				break;
-			}
-			
-			Uart_Send_Response(head->command, NULL, 0);
-			
-			SetParameter(&g_projector_para);
+
 			break;			
 		}	
 		
@@ -739,13 +933,21 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Motor_start(pRx[PACKAGE_DATA_BASE], steps);
 			break;			
 		}	
-				
+		
 		case CMD_SAVE_PARAMRTER:
 		{
 			Uart_Save_Parameter(pRx);
 			Uart_Send_Response(head->command, NULL, 0);
 			break;			
 		}
+		
+		case CMD_CLR_PARAMRTER:
+		{
+			Uart_Clear_Parameter(pRx);
+			Uart_Send_Response(head->command, NULL, 0);
+			break;			
+		}
+		
 		case CMD_GET_VERSION:
 		{
 			buf[0] = VERSION0;
@@ -775,11 +977,11 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			buf[1] =  g_fan34_speed;
 			buf[2] =  g_fan5_speed;
 			buf[3] = g_FanMode;
-			GetFan1Speed();
-			GetFan2Speed();
-			GetFan3Speed();
-			GetFan4Speed();
-			GetFan5Speed();			
+			//GetFan1Speed();
+			//GetFan2Speed();
+			//GetFan3Speed();
+			//GetFan4Speed();
+			//GetFan5Speed();			
 			//GetThreePMotorSpeed();
 			Uart_Send_Response(head->command, buf, 4);			
 			break;			
@@ -794,13 +996,6 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			break;			
 		}
 
-		case CMD_GET_COLOR_TEMP:
-		{
-			buf[0] =  g_projector_para.current.index;
-			Uart_Send_Response(head->command, buf, 1);
-			break;			
-		}
-		
 		case CMD_ENTER_MAT:
 		{
 			Flag_MatMode = 1;
@@ -1185,25 +1380,25 @@ void LcosSetGain(void)
 
 }
 
-void LcosSetGamma(void)
+void LcosSetSxrd241(void)
 {
 		uint16_t i;
 	
-		if((g_projector_para.gama.valid) == PARAMETER_VALID)
+		if((g_pColorTemp->reg_241.valid) == PARAMETER_VALID)
 		{
-			for(i = 0; i < GAMA_REG_NUM; i++) {
-				I2cWriteSxmb241(SXRD241_I2C_ADDRESS, 0x58 + i, g_projector_para.gama.val[i]);
-				printf("reg[%d]=0x%x\r\n",i+58, g_projector_para.gama.val[i]);
+			for(i = 0; i < SXRD241_REG_NUM; i++) {
+				I2cWriteSxmb241(SXRD241_I2C_ADDRESS, i, g_pColorTemp->reg_241.val[i]);
+				printf("reg[%d]=0x%x\r\n", i, g_pColorTemp->reg_241.val[i]);
 			}
 		}
 		
 #if 0		
 		uint8_t reg_data;
-		for(i=0; i<GAMA_REG_NUM; i++) {
-			I2cReadSxmb241(SXRD241_I2C_ADDRESS, 0x58+i, &reg_data);
-			printf("reg[%d]=%d\r\n",i+58, reg_data);
+		for(i=0; i<SXRD241_REG_NUM; i++) {
+			I2cReadSxmb241(SXRD241_I2C_ADDRESS, i, &reg_data);
+			printf("reg[%d]=%d\r\n", i, reg_data);
 		}	
-#endif			
+#endif
 }
 
 void LcosSetFlip(void)
@@ -1247,6 +1442,29 @@ void LcosSetWP(void)
 		}
 
 		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x3500, g_projector_para.wp.val, WP_REG_NUM);
+}
+
+void LcosSetColorTempBlock(void)
+{
+	//GetColorTempParameter();
+	if((g_pColorTemp->reg_misc.valid) == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_MISC_BASEADDRESS, g_pColorTemp->reg_misc.val, MISC_REG_NUM);
+	}
+	
+	if((g_pColorTemp->reg_led.valid) == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_LED_BASEADDRESS, g_pColorTemp->reg_led.val, LED_REG_NUM);
+	}
+	
+	if((g_pColorTemp->reg_frc.valid) == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_FRC_BASEADDRESS, g_pColorTemp->reg_frc.val, FRC_REG_NUM);
+	}
+	
+	LcosSetSxrd241();
+	
+	//SetRGBCurrent();
 }
 /* tim ------------------------------------------------------------------*/
 uint8_t FanSpeedConvert(uint32_t speed)
@@ -1333,12 +1551,12 @@ uint8_t GetThreePMotorSpeed(void)
 	return speed;
 }
 
-uint8_t GetFan1Speed(void) //PA8 timer1_ch1
+uint8_t GetFan1Speed(void) //PC2 timer15_ch2
 {
 	uint16_t count = 1000, speed = 0, T_time;
 	
-		__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-		HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);		
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim15, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+		HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_2);		
 		fan1_capCnt = 1;
 	
 	/* waiting convert complete */
@@ -1481,26 +1699,6 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 	if(TIM1 == htim->Instance)
 	{
 		//printf("HAL_TIM_IC_CaptureCallback  fan1_capCnt:%d fan2_capCnt:%d fan3_capCnt:%d fan4_capCnt:%d !!! \r\n", fan1_capCnt,fan2_capCnt,fan3_capCnt,fan4_capCnt);
-		switch(fan1_capCnt){
-			case 1:
-				fan1_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1,TIM_CHANNEL_1,TIM_ICPOLARITY_FALLING);
-				fan1_capCnt++;
-				break;
-			
-			case 2:
-				fan1_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-				fan1_capCnt++;  
-				break;		
-			
-			case 3:
-				fan1_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_1);
-				HAL_TIM_IC_Stop_IT(&htim1,TIM_CHANNEL_1);
-				fan1_capCnt++;  
-				break;
-		}	
-		
 		switch(fan2_capCnt){
 			case 1:
 				fan2_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim1,TIM_CHANNEL_2);
@@ -1585,6 +1783,27 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				fan5_capCnt++;  
 				break;			
 		}
+		
+		switch(fan1_capCnt){
+			case 1:
+				fan1_capBuf[0] = HAL_TIM_ReadCapturedValue(&htim15,TIM_CHANNEL_2);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim15,TIM_CHANNEL_2,TIM_ICPOLARITY_FALLING);
+				fan1_capCnt++;
+				break;
+			
+			case 2:
+				fan1_capBuf[1] = HAL_TIM_ReadCapturedValue(&htim15,TIM_CHANNEL_2);
+				__HAL_TIM_SET_CAPTUREPOLARITY(&htim15, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+				fan1_capCnt++;  
+				break;		
+			
+			case 3:
+				fan1_capBuf[2] = HAL_TIM_ReadCapturedValue(&htim15,TIM_CHANNEL_2);
+				HAL_TIM_IC_Stop_IT(&htim15,TIM_CHANNEL_2);
+				fan1_capCnt++;  
+				break;
+		}	
+		
 	}
 }
 #endif

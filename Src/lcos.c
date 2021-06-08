@@ -4485,7 +4485,7 @@ uint8_t fine_tuning_pannel[88][2] ={//default
 void LcosInitGamma(void)
 {
 	uint16_t i;
-  for(i=0; i<GAMA_REG_NUM; i++)
+  for(i=0; i<88; i++)
   {
     I2cWriteSxmb241(SXRD241_I2C_ADDRESS, fine_tuning_pannel[i][0], fine_tuning_pannel[i][1]);
   }

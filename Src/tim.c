@@ -60,10 +60,6 @@ void MX_TIM1_Init(void)
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -207,6 +203,10 @@ void MX_TIM15_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_IC_ConfigChannel(&htim15, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
 }
 /* TIM16 init function */
@@ -270,11 +270,9 @@ void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* tim_icHandle)
     __HAL_RCC_TIM1_CLK_ENABLE();
   
     __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     /**TIM1 GPIO Configuration    
     PC11     ------> TIM1_CH4
-    PA8     ------> TIM1_CH1
     PB3     ------> TIM1_CH2
     PC10     ------> TIM1_CH3 
     */
@@ -284,13 +282,6 @@ void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* tim_icHandle)
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM1;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF2_TIM1;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = GPIO_PIN_3;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -316,9 +307,10 @@ void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* tim_icHandle)
   
     __HAL_RCC_GPIOC_CLK_ENABLE();
     /**TIM15 GPIO Configuration    
-    PC1     ------> TIM15_CH1 
+    PC1     ------> TIM15_CH1
+    PC2     ------> TIM15_CH2 
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_1;
+    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -478,13 +470,10 @@ void HAL_TIM_IC_MspDeInit(TIM_HandleTypeDef* tim_icHandle)
   
     /**TIM1 GPIO Configuration    
     PC11     ------> TIM1_CH4
-    PA8     ------> TIM1_CH1
     PB3     ------> TIM1_CH2
     PC10     ------> TIM1_CH3 
     */
     HAL_GPIO_DeInit(GPIOC, GPIO_PIN_11|GPIO_PIN_10);
-
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_8);
 
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3);
 
@@ -503,9 +492,10 @@ void HAL_TIM_IC_MspDeInit(TIM_HandleTypeDef* tim_icHandle)
     __HAL_RCC_TIM15_CLK_DISABLE();
   
     /**TIM15 GPIO Configuration    
-    PC1     ------> TIM15_CH1 
+    PC1     ------> TIM15_CH1
+    PC2     ------> TIM15_CH2 
     */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_1);
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_1|GPIO_PIN_2);
 
     /* TIM15 interrupt Deinit */
     HAL_NVIC_DisableIRQ(TIM15_IRQn);

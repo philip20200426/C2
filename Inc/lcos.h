@@ -7,8 +7,12 @@
 #define CXD3554_I2C_ADDRESS 0x74
 #define SXRD241_I2C_ADDRESS 0x92
 
+#define SXRD241_REG_NUM		256
+#define LED_REG_NUM       460
+#define FRC_REG_NUM				512
+#define MISC_REG_NUM			256
+
 #define KST_REG_NUM				16
-#define GAMA_REG_NUM			88
 #define WP_REG_NUM				438
 #define WEC_REG_NUM				912
 

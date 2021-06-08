@@ -17,12 +17,14 @@
 #include "LaserDrv.h"
 
 /* Private define ------------------------------------------------------------*/
-#define FLASH_USER_START_ADDR   (FLASH_BASE + (62 * FLASH_PAGE_SIZE))   /*0~63 Start @ of user Flash area */
+#define FLASH_USER_START_ADDR   (FLASH_BASE + (63 * FLASH_PAGE_SIZE))   /*0~63 Start @ of user Flash area */
+#define FLASH_COLORTEMP_START_ADDR	(FLASH_BASE + (62 * FLASH_PAGE_SIZE))
 #define FLASH_USER_END_ADDR     (FLASH_BASE + FLASH_SIZE - 1)   /* End @ of user Flash area */
 
 #define	GET_BIT(x, bit)	((x & (1 << bit)) >> bit)
 
-#define PARAMETER_VALID		0x3A
+#define PARAMETER_VALID			0x3A
+#define PARAMETER_INVALID		0xFF
 
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
@@ -41,14 +43,17 @@
 #define CMD_GET_FANS						21
 #define CMD_GET_VERSION					22
 #define CMD_GET_TEMPS						23
-#define CMD_GET_COLOR_TEMP			24
+
+
 
 #define CMD_SET_CURRENTS				30
 #define CMD_SET_FANS						31
 #define CMD_SET_FOCUSMOTOR			32
 #define CMD_SET_COLOR_TEMP			34
 
+
 #define CMD_SAVE_PARAMRTER			40
+#define CMD_CLR_PARAMRTER				41
 
 #define CMD_ENTER_MAT						50
 
@@ -98,10 +103,21 @@ typedef enum
 	PARA_CURRENT = 0,
 	PARA_FLIP,
 	PARA_KST,
-	PARA_GAMA,
+	PARA_COLOR_TEMP,
 	PARA_WP,
+	PARA_241,
+	PARA_LED,
+	PARA_FRC,
+	PARA_MISC,
 	PARA_MAX	
 }PARA_Type;
+
+typedef enum
+{
+	FLASH_MISC = 0,
+	FLASH_COLOR_TEMP,
+	FLASH_MAX	
+}FLASH_Type;
 
 typedef enum
 {
@@ -113,14 +129,6 @@ typedef enum
 }CURRENT_Type;
 /* Private variables ---------------------------------------------------------*/
 
-struct Parameter_Current
-{
-    uint8_t  valid;
-    uint8_t  index;
-    uint16_t  r[4];
-    uint16_t  g[4];
-    uint16_t  b[4];	
-};
 
 struct Parameter_Gain
 {
@@ -143,11 +151,6 @@ struct Parameter_Kst
     uint8_t  val[KST_REG_NUM];		
 };
 
-struct Parameter_Gama
-{
-    uint8_t  valid;
-    uint8_t  val[GAMA_REG_NUM];		
-};
 
 struct Parameter_Wp
 {
@@ -156,12 +159,52 @@ struct Parameter_Wp
 };
 
 struct Projector_parameter{
-		struct Parameter_Current current;
 		struct Parameter_Gain gain;
 		struct Parameter_Flip flip;
 		struct Parameter_Kst kst;
-		struct Parameter_Gama gama;
 		struct Parameter_Wp wp;	
+		uint8_t  Reserved[8];
+};
+
+
+struct Parameter_Sxrd241
+{
+    uint8_t  valid;
+    uint8_t  val[SXRD241_REG_NUM];		
+};
+
+struct Parameter_Current
+{
+    uint8_t  valid;
+    uint16_t  r;
+    uint16_t  g;
+    uint16_t  b;	
+};
+
+struct Parameter_Led
+{
+    uint8_t  valid;
+    uint8_t  val[LED_REG_NUM];		
+};
+
+struct Parameter_Frc
+{
+    uint8_t  valid;
+    uint8_t  val[FRC_REG_NUM];		
+};
+
+struct Parameter_Misc
+{
+    uint8_t  valid;
+    uint8_t  val[MISC_REG_NUM];		
+};
+
+struct Projector_Color_Temp{
+		struct Parameter_Current current;
+		struct Parameter_Sxrd241 reg_241;
+		struct Parameter_Led reg_led;
+		struct Parameter_Frc reg_frc;
+		struct Parameter_Frc reg_misc;
 		uint8_t  Reserved[8];
 };
 

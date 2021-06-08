@@ -53,7 +53,8 @@
 #define TIME_BASE_50US_1S       (1000000 / TIME_BASE_TIMER)
 #define TIME_BASE_50US_5S       (5384000 / TIME_BASE_TIMER)
 #define TIME_BASE_50US_10S      (10000000/ TIME_BASE_TIMER)
-
+#define TIME_BASE_50US_20S      (20000000/ TIME_BASE_TIMER)
+#define TIME_BASE_50US_30S      (30000000/ TIME_BASE_TIMER)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -76,6 +77,7 @@ volatile uint32_t Counter256ms = 0;
 volatile uint32_t Counter512ms = 0;
 volatile uint32_t Counter1s = 0;
 volatile uint32_t Counter5s = 0;
+volatile uint32_t Counter20s = 0;
 volatile uint32_t CounterBaseStep = 0;
 volatile uint32_t LedCounter = 0;
 
@@ -90,6 +92,7 @@ volatile _Bool Flag256ms = 0;
 volatile _Bool Flag512ms = 0;
 volatile _Bool Flag1s = 0;
 volatile _Bool Flag5s = 0;
+volatile _Bool Flag20s = 0;
 
 volatile _Bool Flag_Sxrd241_Alarm = 0;
 volatile _Bool Flag_Projector_On = 1;
@@ -100,24 +103,25 @@ volatile _Bool Flag_MatMode = 0;
 uint16_t g_overtemp_cnt = 0;
 uint32_t g_fan_value;
 
+void Fan_Auto_Control(void);
 void SysTaskDispatch(void);
 extern void Variables_Init(void);
 extern void ThreePhaseMotorDriver_init(void);
 extern void LcosSetKst(void);
 extern void LcosSetWP(void);
-extern void LcosSetGamma(void);
 extern void LcosSetIntBCHS(void);
 extern void LcosSetGain(void);
 extern void LcosSetFlip(void);
 extern void LcosInitWec(void);
 extern void GetParameter(void);
+extern void GetColorTempParameter(void);
 extern void ReceiveUart1Data(void);
 extern HAL_StatusTypeDef SetBootPinMode(void);
 extern void Lcos_CheckRegError(uint8_t local);
 extern 	uint8_t GetFanSpeed(void);
 extern void MotorLimit_DealWith(uint8_t lr);
 extern void UartCommandParser(void);
-
+extern void LcosSetColorTempBlock(void);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -210,11 +214,12 @@ int main(void)
 
 	Variables_Init();
   GetParameter();
+	GetColorTempParameter();
   GpioConfig();	
 #if 1	
-	SetFan12Speed(FAN_SPEED_DEFAULT);
-	SetFan34Speed(FAN_SPEED_DEFAULT);
-  SetFan5Speed(FAN_SPEED_SLOW);
+	SetFan12Speed(20);
+	SetFan34Speed(20);
+  SetFan5Speed(20);
 #else
 	SetFan12Speed(FAN_SPEED_FULL);
 	SetFan34Speed(FAN_SPEED_FULL);
@@ -234,15 +239,16 @@ int main(void)
 	LcosSetFlip();
 	LcosSetKst();
 	LcosSetWP();
-	LcosSetGamma();
-	LcosSetGain();
+	LcosSetColorTempBlock();
+	//LcosSetGain();
 	//LcosInitWec();
 	
 	LT89121_Reset();
 	SetBootPinMode();
 	ReceiveUart1Data();
-	
+#ifdef CONFIG_IWDG	
   MX_IWDG_Init();
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -422,8 +428,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	  {
 				Flag512ms = 1;
 				Counter512ms = 0;
+#ifdef CONFIG_IWDG
 				/* Refresh the IWDG 2S overflow*/
 				HAL_IWDG_Refresh(&hiwdg);
+#endif
   	  }
   	  if(TIME_BASE_50US_1S == ++Counter1s)
   	  {
@@ -434,6 +442,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	  {
 				Flag5s = 1;
 				Counter5s = 0;
+  	  }
+			if(TIME_BASE_50US_20S == ++Counter20s)
+  	  {
+				Flag20s = 1;
+				Counter20s = 0;
   	  }
   }
 }
@@ -489,6 +502,76 @@ void SysTask1s(void)
 	{
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
+}
+void SysTask5s(void)
+{
+
+}
+void SysTask20s(void)
+{
+	Fan_Auto_Control();
+}
+void SysTaskDispatch(void)
+{
+    SysTask0ms();  	
+		if(Flag1ms)
+		{
+		   Flag1ms = 0;
+		   SysTask1ms();
+		}
+		if(Flag4ms)
+		{
+		   Flag4ms = 0;
+		   SysTask4ms();
+		}
+		if(Flag8ms)
+		{
+		   Flag8ms = 0;
+		   SysTask8ms();
+		}
+		
+		if(Flag16ms)
+		{
+		   Flag16ms = 0;
+		   SysTask16ms();
+		}
+		if(Flag24ms)
+		{
+		   Flag24ms = 0;
+		}		
+		if(Flag32ms)
+		{
+		   Flag32ms = 0;
+		}			
+		if(Flag64ms)
+		{
+		   Flag64ms = 0;
+		}	
+		if(Flag256ms)
+		{
+		   Flag256ms = 0;
+			 SysTask256ms();
+		}
+		if(Flag512ms)
+		{
+		   Flag512ms = 0;
+		   SysTask512ms();
+		}
+		if(Flag1s)
+		{
+		   Flag1s = 0;
+		   SysTask1s();
+		}
+		if(Flag5s)
+		{
+		   Flag5s = 0;
+		   SysTask5s();
+		}
+		if(Flag20s)
+		{
+		   Flag20s = 0;
+		   SysTask20s();
+		}
 }
 /*-------------------------------------------------------------------------------------------*/	
 const uint16_t LD_RT_TABLE[] =
@@ -637,7 +720,7 @@ const uint8_t LD_CTL_TABLE[][2] =
 	{41, 20},	
 	{42, 20},	
 	{43, 30},	
-	{44, 40},
+	{44, 30},
 	{45, 40},	
 	{46, 40},	
 	{47, 40},	
@@ -718,8 +801,8 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 
 	return LCOS_CTL_TABLE[i-1][1];
 }
-/*-------------------------------------------------------------------------------------------*/	
-void SysTask5s(void)
+
+void Fan_Auto_Control(void)
 {
 	uint16_t ld_adc = 0, lcos_adc = 0;
 	uint16_t adc_val[3];
@@ -769,66 +852,9 @@ void SysTask5s(void)
 			}
 		}
 	}
-#endif
+#endif	
 }
-
-void SysTaskDispatch(void)
-{
-    SysTask0ms();  	
-		if(Flag1ms)
-		{
-		   Flag1ms = 0;
-		   SysTask1ms();
-		}
-		if(Flag4ms)
-		{
-		   Flag4ms = 0;
-		   SysTask4ms();
-		}
-		if(Flag8ms)
-		{
-		   Flag8ms = 0;
-		   SysTask8ms();
-		}
-		
-		if(Flag16ms)
-		{
-		   Flag16ms = 0;
-		   SysTask16ms();
-		}
-		if(Flag24ms)
-		{
-		   Flag24ms = 0;
-		}		
-		if(Flag32ms)
-		{
-		   Flag32ms = 0;
-		}			
-		if(Flag64ms)
-		{
-		   Flag64ms = 0;
-		}	
-		if(Flag256ms)
-		{
-		   Flag256ms = 0;
-			 SysTask256ms();
-		}
-		if(Flag512ms)
-		{
-		   Flag512ms = 0;
-		   SysTask512ms();
-		}
-		if(Flag1s)
-		{
-		   Flag1s = 0;
-		   SysTask1s();
-		}
-		if(Flag5s)
-		{
-		   Flag5s = 0;
-		   SysTask5s();
-		}
-}
+/*-------------------------------------------------------------------------------------------*/	
 
 /* USER CODE END 4 */
 
