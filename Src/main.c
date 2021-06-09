@@ -164,7 +164,7 @@ void LT89121_Reset(void)
 	HAL_Delay(20);		
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET); //LT89121 reset	
 }
-
+#define CONFIG_IWDG
 /* USER CODE END 0 */
 
 /**
@@ -258,6 +258,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+#ifdef CONFIG_IWDG
+		/* Refresh the IWDG 4S overflow*/
+		HAL_IWDG_Refresh(&hiwdg);
+#endif
     SysTaskDispatch();
 		
   }
@@ -428,10 +432,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	  {
 				Flag512ms = 1;
 				Counter512ms = 0;
-#ifdef CONFIG_IWDG
-				/* Refresh the IWDG 2S overflow*/
-				HAL_IWDG_Refresh(&hiwdg);
-#endif
   	  }
   	  if(TIME_BASE_50US_1S == ++Counter1s)
   	  {

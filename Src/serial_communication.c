@@ -454,7 +454,7 @@ _Bool SetUserParameter(void *buf, uint32_t size, uint32_t user_start_addr, uint3
       PageError will contain the faulty page and then to know the code error on this page,
       user can call function 'HAL_FLASH_GetError()'
     */
-		printf("SetUserParameter:HAL_FLASHEx_Erase errcode[%d]\r\n",HAL_FLASH_GetError());
+		printf("SetUserParameter:HAL_FLASHEx_Erase PageError=%d errcode[%d]\r\n",PageError, HAL_FLASH_GetError());
 		HAL_FLASH_Lock();
 		return 1;
   }
