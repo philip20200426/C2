@@ -801,7 +801,7 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 
 	return LCOS_CTL_TABLE[i-1][1];
 }
-
+#define TEMP_OVER_CNT   5   //2min
 void Fan_Auto_Control(void)
 {
 	uint16_t ld_adc = 0, lcos_adc = 0;
@@ -827,7 +827,7 @@ void Fan_Auto_Control(void)
 		if(ld_temp > 55 || lcos_temp > 60)
 		{  	
 			g_overtemp_cnt++;
-			if(g_overtemp_cnt > 12)
+			if(g_overtemp_cnt > TEMP_OVER_CNT)
 			{
 				if(Flag_Projector_On != 0)
 				{

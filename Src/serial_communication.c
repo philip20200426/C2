@@ -47,6 +47,7 @@ volatile uint8_t UartCommandBuffer[UART_BUFFER_MAX_SIZE] = {0};
 volatile uint8_t UartReceiveLength = 0;
 volatile uint8_t UartTempLength = 0;
 volatile uint8_t UartCommandLength = 0;
+volatile _Bool FlagSonyTool = 0;
 /* sony tools  ---------------------------------------------------------*/
 struct asu_date asu_rec_data;
 int  data_len = 0;
@@ -566,6 +567,8 @@ unsigned short checksum(unsigned char* pdata, unsigned short size)
 {
 	unsigned short sum = 0;
 
+	if(pdata == NULL) return 0;
+	
 	for (int i = 0; i < size; i++)
 		sum += *pdata++;
 
@@ -859,7 +862,7 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 		printf(" flag error!: 0x%x\n\r", head->flag);		
 		return;
 	}
-	
+
 	check = checksum((uint8_t *)&pRx[PACKAGE_DATA_BASE], head->size);
 	if (head->check != check)
 	{
@@ -867,6 +870,7 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 		printf(" checksum error!: 0x%x cal_sum:0x%x \n\r", head->check, check);		
 		return;
 	}
+
 /*-------------------------------------------------------------------------------------------*/	
 	switch(head->command)
 	{	
@@ -894,9 +898,10 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			break;
 		}	
 
-		case CMD_SET_COLOR_TEMP:
+		case CMD_SET_SONY_TOOL:
 		{
-
+			FlagSonyTool = pRx[PACKAGE_DATA_BASE];
+			Uart_Send_Response(head->command, NULL, 0);
 			break;			
 		}	
 		
@@ -1028,9 +1033,12 @@ void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size )
 	}
 	printf("\r\n");
 #endif	
-	
+	printf("send uart data. size=%d \n\r", size);
+//printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 	HAL_UART_Transmit(&huart1, (uint8_t*)&head,  sizeof(struct PACKAGE_HEAD), 100);
+//printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 	HAL_UART_Transmit(&huart1, data,  size, 100);
+//printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 	
 #ifdef PRINT_SEND_LOG
 	printf("\r\n send data:");	
@@ -1047,7 +1055,8 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 	I2C_HandleTypeDef hi2c;
   uint16_t i;
 	uint16_t frame_head = *(uint16_t*)pRx;
-
+	
+	printf("received uart data. len;%d head:0x%x \n\r", length, frame_head);
 #ifdef PRINT_RECV_LOG
 	printf("\n\r UartCmdHandler %d Bytes:",length);
 	for(uint16_t i = 0; i < length; i++)
@@ -1060,10 +1069,22 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 	if(frame_head == COMM_FLAG)
 	{
 		ToolUartCmdHandler(pRx, length);
+		printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 		return;
 	} else 	
 /*-------------------------------------------------------------------------------------------*/	
 	{
+		if(FlagSonyTool == 0)
+		{
+			Uart_Send_Response(CMD_ERROR, NULL, 0);
+			printf("\n\r UartCmdHandler %d Bytes:",length);
+			for(uint16_t i = 0; i < length; i++)
+			{
+				printf(" 0x%02X", pRx[i]);
+			}
+			printf("\n\r");
+		}
+		
 		int para0_len,para1_len,read_len;
 		unsigned char temp;
 		
@@ -1339,7 +1360,7 @@ void UartCommandParser(void)
 		UartCommandLength = UartTempLength - i;
 		memset((void*)UartCommandBuffer,0x00,UART_BUFFER_MAX_SIZE);	
 		memcpy((void*)UartCommandBuffer, (void*)&UartTempBuffer[i], UartCommandLength);
-		
+		printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 		UartTempLength = 0;
 		UartCmdHandler((uint8_t *)UartCommandBuffer,UartCommandLength);
 	}
@@ -1352,7 +1373,7 @@ void HAL_UART_AbortReceiveCpltCallback (UART_HandleTypeDef *huart)
 	memcpy((void*)UartTempBuffer, (void*)UartReceiveRxBuffer, UartReceiveLength);
 	UartTempLength = UartReceiveLength;
 	
-	//printf("HAL_UART_AbortReceiveCpltCallback len=%d\r\n",UartReceiveLength);
+	printf("HAL_UART_ReceiveCpltCallback len=%d\r\n",UartReceiveLength);
 	//Re-start receiving
 	ReceiveUart1Data();
 	/* NOTE : This function should not be modified, when the callback is needed,
@@ -1839,7 +1860,7 @@ uint16_t get_ADC_DmaValue(uint16_t ch, uint16_t* val)
 	uint32_t val_sum[ADC_CHANNEL_CNT] = {0};
 	
 	memset(aResultDMA, 0, sizeof(aResultDMA));
-	
+
 	if(flag_cal) {
 		if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK) {
 			printf("HAL_ADCEx_Calibration_Start faild. ret=%d \r\n", ret);

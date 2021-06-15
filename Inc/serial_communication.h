@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	2
+#define VERSION2 	3
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
 #define CMD_ERROR								0
@@ -49,7 +49,7 @@
 #define CMD_SET_CURRENTS				30
 #define CMD_SET_FANS						31
 #define CMD_SET_FOCUSMOTOR			32
-#define CMD_SET_COLOR_TEMP			34
+#define CMD_SET_SONY_TOOL				33
 
 
 #define CMD_SAVE_PARAMRTER			40
