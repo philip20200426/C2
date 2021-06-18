@@ -1034,11 +1034,8 @@ void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size )
 	printf("\r\n");
 #endif	
 	printf("send uart data. size=%d \n\r", size);
-//printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 	HAL_UART_Transmit(&huart1, (uint8_t*)&head,  sizeof(struct PACKAGE_HEAD), 100);
-//printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 	HAL_UART_Transmit(&huart1, data,  size, 100);
-//printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 	
 #ifdef PRINT_SEND_LOG
 	printf("\r\n send data:");	
@@ -1069,7 +1066,6 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 	if(frame_head == COMM_FLAG)
 	{
 		ToolUartCmdHandler(pRx, length);
-		printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 		return;
 	} else 	
 /*-------------------------------------------------------------------------------------------*/	
@@ -1083,6 +1079,7 @@ void UartCmdHandler(uint8_t *pRx,uint8_t length)
 				printf(" 0x%02X", pRx[i]);
 			}
 			printf("\n\r");
+			return;
 		}
 		
 		int para0_len,para1_len,read_len;
@@ -1346,21 +1343,29 @@ void UartCommandParser(void)
 	int i = 0;
 	
 	if(UartTempLength > 0) {
-#if 0		
-		for (i=0;i<UartTempLength;i++)
+		if(FlagSonyTool == 0)
 		{
-				if(UartTempBuffer[i] == 0xFE) break;
+			for (i=0;i<UartTempLength;i++)
+			{
+				if(UartTempBuffer[i] == 0xFE && UartTempBuffer[i+1] == 0xFE) break;
+			}
+
+			if(i == UartTempLength)
+			{
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+				printf("\n\r UartCommandParser %d Bytes:",UartTempLength);
+				for(uint16_t j = 0; j < UartTempLength; j++)
+				{
+					printf(" 0x%02X", UartTempBuffer[j]);
+				}
+				printf("\n\r");
+				return; //no 0xFEFE return
+			}
 		}
-		if(i == UartTempLength) 
-		{
-			Uart_Send_Response(CMD_ERROR, NULL, 0);	
-			return; //no 0xFE return 
-		}
-#endif
+
 		UartCommandLength = UartTempLength - i;
 		memset((void*)UartCommandBuffer,0x00,UART_BUFFER_MAX_SIZE);	
 		memcpy((void*)UartCommandBuffer, (void*)&UartTempBuffer[i], UartCommandLength);
-		printf("%s %d 0x%x 0x%x\r\n", __func__,__LINE__, (unsigned int)hadc1.Instance, (unsigned int)&hadc1);	
 		UartTempLength = 0;
 		UartCmdHandler((uint8_t *)UartCommandBuffer,UartCommandLength);
 	}
