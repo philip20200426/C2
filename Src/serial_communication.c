@@ -1354,11 +1354,14 @@ void UartCommandParser(void)
 			{
 				Uart_Send_Response(CMD_ERROR, NULL, 0);
 				printf("\n\r UartCommandParser %d Bytes:",UartTempLength);
+				
 				for(uint16_t j = 0; j < UartTempLength; j++)
 				{
 					printf(" 0x%02X", UartTempBuffer[j]);
 				}
 				printf("\n\r");
+				
+				UartTempLength = 0;
 				return; //no 0xFEFE return
 			}
 		}
