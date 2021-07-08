@@ -96,7 +96,7 @@ volatile _Bool Flag20s = 0;
 
 volatile _Bool Flag_Sxrd241_Alarm = 0;
 volatile _Bool Flag_Projector_On = 1;
-//volatile _Bool Flag_FanLock = 0;
+volatile _Bool Flag_Lvds_Clk_Stb = 1;
 volatile _Bool Flag_LT9211_Int = 0;
 volatile _Bool g_FanMode = 0;
 volatile _Bool Flag_MatMode = 0;
@@ -122,6 +122,11 @@ extern 	uint8_t GetFanSpeed(void);
 extern void MotorLimit_DealWith(uint8_t lr);
 extern void UartCommandParser(void);
 extern void LcosSetColorTempBlock(void);
+#ifdef USE_LT9211_LVDS2MIPI
+extern void	LT9211_Init(void);
+extern void LT9211_Pattern_Init(void);
+extern int lt9211_get_lvds_clkstb(uint8_t* count);
+#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -155,7 +160,7 @@ void GpioConfig(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);    //FAN_OFF enable Fan
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);    //CX3554_3V3_EN 
 	LcosVideoMute(VIDEO_UNMUTE);
-	SetRGB_Enable(GPIO_PIN_SET); //LD_EN	
+	//SetRGB_Enable(GPIO_PIN_SET); //LD_EN
 }
 
 void LT89121_Reset(void)
@@ -164,7 +169,16 @@ void LT89121_Reset(void)
 	HAL_Delay(20);		
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET); //LT89121 reset	
 }
+
 #define CONFIG_IWDG
+
+void Clear_WatchDog(void)
+{
+#ifdef CONFIG_IWDG
+		/* Refresh the IWDG 4S overflow*/
+		HAL_IWDG_Refresh(&hiwdg);
+#endif
+}
 /* USER CODE END 0 */
 
 /**
@@ -242,8 +256,13 @@ int main(void)
 	LcosSetColorTempBlock();
 	//LcosSetGain();
 	//LcosInitWec();
-	
+#ifdef USE_LT9211_LVDS2MIPI
+	LT9211_Init();
+#else
 	LT89121_Reset();
+#endif
+	SetRGB_Enable(GPIO_PIN_SET); //LD_EN
+
 	SetBootPinMode();
 	ReceiveUart1Data();
 #ifdef CONFIG_IWDG	
@@ -258,12 +277,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    SysTaskDispatch();
 #ifdef CONFIG_IWDG
 		/* Refresh the IWDG 4S overflow*/
 		HAL_IWDG_Refresh(&hiwdg);
 #endif
-    SysTaskDispatch();
-		
   }
   /* USER CODE END 3 */
 }
@@ -461,7 +479,15 @@ void Delay50Us(uint32_t timer)
 
 void SysTask0ms(void)
 {
+#ifdef USE_LT9211_LVDS2MIPI
+	uint8_t count = 20;
 
+	if(!lt9211_get_lvds_clkstb(&count))
+	{
+		Flag_Lvds_Clk_Stb = 0;
+		printf("\r\n lvds clk not stable \r\n");
+	}
+#endif
 }
 
 void SysTask1ms(void)
@@ -485,7 +511,11 @@ void SysTask16ms(void)
 
 void SysTask256ms(void)
 {
+#ifdef USE_LT9211_LVDS2MIPI
+	if(Flag_Lvds_Clk_Stb == 0)
+#else
 	if(Flag_Projector_On == 0)
+#endif
 	{
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
@@ -496,6 +526,7 @@ void SysTask512ms(void)
 
 }
 
+extern void LT9211_VideoGet(void);
 void SysTask1s(void)
 {
 	if(Flag_Projector_On == 1) 
@@ -503,6 +534,7 @@ void SysTask1s(void)
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
 }
+
 void SysTask5s(void)
 {
 
@@ -812,7 +844,7 @@ void Fan_Auto_Control(void)
 	lcos_adc = adc_val[2];
 	ld_temp = GetLd_RT_Temp(ld_adc);
 	lcos_temp = GetLcos_RT_Temp(lcos_adc);
-	printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
+	//printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
 	//GetFanSpeed();
 #if 1
 	if(!g_FanMode)

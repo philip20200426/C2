@@ -50,7 +50,7 @@
 #define CMD_SET_FANS						31
 #define CMD_SET_FOCUSMOTOR			32
 #define CMD_SET_SONY_TOOL				33
-
+#define CMD_SET_LT9211_TEST			34
 
 #define CMD_SAVE_PARAMRTER			40
 #define CMD_CLR_PARAMRTER				41

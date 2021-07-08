@@ -25,6 +25,10 @@ extern uint16_t GetLd_RT_Temp(uint16_t adc_val);
 extern uint16_t GetLcos_RT_Temp(uint16_t adc_val);
 extern uint8_t ReadReg_10983(uint8_t RegAddr);
 extern uint8_t GetRGBCurrent(uint8_t rgb);
+#ifdef USE_LT9211_LVDS2MIPI
+extern void	LT9211_Init(void);
+extern void LT9211_Pattern_Init(void);
+#endif
 
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
 uint8_t GetFan1Speed(void);
@@ -897,7 +901,17 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Uart_Cmd_ReadReg(head->command, reg, buf, reg_count);
 			break;
 		}	
-
+		case CMD_SET_LT9211_TEST:
+		{
+#ifdef USE_LT9211_LVDS2MIPI
+			if(pRx[PACKAGE_DATA_BASE] == 0)
+				LT9211_Init();
+			else
+				LT9211_Pattern_Init();
+#endif
+			Uart_Send_Response(head->command, NULL, 0);
+			break;
+		}
 		case CMD_SET_SONY_TOOL:
 		{
 			FlagSonyTool = pRx[PACKAGE_DATA_BASE];

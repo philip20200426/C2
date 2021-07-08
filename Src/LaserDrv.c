@@ -191,18 +191,18 @@ uint8_t SetBlueCurrent(uint16_t BlueCurrent)
 	return SetPwm(TPL1401_BLED_I2C_ADDR, (MAX_BLUE_VAL - BlueCurrent) << 4);
 }
 
+#define WAIT_12V_TIMEOUT 	30  //3s
 void SetRGBCurrent(void)
 {
 	uint16_t RedCurrent;
 	uint16_t GreenCurrent;	
 	uint16_t BlueCurrent;	
-	uint8_t retry_cnt = 50;
-	//MB_GPIO0 
+	uint8_t retry_cnt = WAIT_12V_TIMEOUT;
+	//MB_GPIO0
 	while(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_15) != GPIO_PIN_SET && retry_cnt--)
 	{
 		HAL_Delay(100);
 	}
-	HAL_Delay(100);
 
 	if(g_pColorTemp->current.valid == PARAMETER_VALID)
 	{
@@ -216,7 +216,13 @@ void SetRGBCurrent(void)
 		GreenCurrent = DEFAULT_G_VAL;
 		BlueCurrent 	= DEFAULT_B_VAL;
 	}
-	printf("set rgb:%d %d %d  retry_cnt:%d \r\n",RedCurrent, GreenCurrent, BlueCurrent, 50 - retry_cnt);
+
+	if(retry_cnt == 255)
+	{
+		printf("set rgb:%d %d %d  retry_cnt timeout. \r\n",RedCurrent, GreenCurrent, BlueCurrent);
+	} else {
+		printf("set rgb:%d %d %d  retry_cnt:%d \r\n",RedCurrent, GreenCurrent, BlueCurrent, WAIT_12V_TIMEOUT - retry_cnt);
+	}
 	SetRedCurrent(RedCurrent);
   SetGreenCurrent(GreenCurrent);
   SetBlueCurrent(BlueCurrent);
