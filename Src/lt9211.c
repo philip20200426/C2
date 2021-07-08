@@ -806,8 +806,9 @@ int lt9211_get_lvds_clkstb(uint8_t* count)
 {
     uint8_t porta_clk_state = 0;
     uint8_t portb_clk_state = 0;
+		uint8_t cnt = *count;
 	
-		while(*count--)
+		while(cnt--)
 		{
 				HDMI_WriteI2C_Byte(0xff,0x86);
 				HDMI_WriteI2C_Byte(0x00,0x01);
@@ -821,10 +822,11 @@ int lt9211_get_lvds_clkstb(uint8_t* count)
 				
 				if(porta_clk_state && portb_clk_state)
 				{
+						*count = cnt;
 						return 1;
 				}
     }
-		
+
 		*count = 0;
     return 0;
 }
@@ -841,7 +843,7 @@ void LT9211_Init(void)
 
 		if(lt9211_get_lvds_clkstb(&count))
 		{
-			printf("\r\n lvds clk stable count=%d\r\n", count);
+			printf("\r\n LT9211_Init: lvds clk stable count=%d\r\n", count);
 			LT9211_ClockCheckDebug();
 			LT9211_LvdsRxPll();
 			lt9211_vid_chk_rst();              //video chk soft rst
@@ -856,7 +858,7 @@ void LT9211_Init(void)
 			//InitPanel();
 			LT9211_MipiTxDigital();	
 		} else {
-			printf("\r\n lvds clk not stable \r\n");
+			printf("\r\n LT9211_Init: lvds clk not stable \r\n");
 		}
 }
 

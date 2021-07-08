@@ -479,15 +479,7 @@ void Delay50Us(uint32_t timer)
 
 void SysTask0ms(void)
 {
-#ifdef USE_LT9211_LVDS2MIPI
-	uint8_t count = 20;
 
-	if(!lt9211_get_lvds_clkstb(&count))
-	{
-		Flag_Lvds_Clk_Stb = 0;
-		printf("\r\n lvds clk not stable \r\n");
-	}
-#endif
 }
 
 void SysTask1ms(void)
@@ -506,7 +498,18 @@ void SysTask8ms(void)
 
 void SysTask16ms(void)
 {
+#ifdef USE_LT9211_LVDS2MIPI
+	uint8_t count = 20;
 
+	if(!lt9211_get_lvds_clkstb(&count))
+	{
+		if(Flag_Lvds_Clk_Stb)
+		{
+			printf("\r\n lvds clk not stable \r\n");
+			Flag_Lvds_Clk_Stb = 0;
+		}
+	}
+#endif
 }
 
 void SysTask256ms(void)
