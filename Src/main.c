@@ -532,7 +532,11 @@ void SysTask512ms(void)
 extern void LT9211_VideoGet(void);
 void SysTask1s(void)
 {
+#ifdef USE_LT9211_LVDS2MIPI
+	if(Flag_Lvds_Clk_Stb == 1)
+#else
 	if(Flag_Projector_On == 1) 
+#endif
 	{
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}

@@ -730,43 +730,6 @@ void LT9211_Pattern_Config(void)
     LT9211_ClockCheckDebug();
 }
 
-void LT9211_MainLoop(void)
-{
-    static int flag_lvds_chg = 1;
-    
-    if( lt9211_lvds_clkstb_check() )
-    {
-        if( flag_lvds_chg )
-        {
-            printf("\r\n lvds clk stable \r\n");
-            LT9211_ClockCheckDebug();
-            LT9211_LvdsRxPll();
-            lt9211_vid_chk_rst();              //video chk soft rst
-            lt9211_lvdsrx_logic_rst();
-            HAL_Delay(200);
-            LT9211_VideoCheck();
-
-            //mipi tx set
-            LT9211_MipiTxpll();					
-            LT9211_MipiTxPhy();
-						LT9211_SetTxTiming2();
-            //InitPanel();
-            LT9211_MipiTxDigital();
-            
-            flag_lvds_chg = 0;
-        }
-    }
-    else
-    {
-        if( !flag_lvds_chg )
-        {
-            printf("\r\n lvds clk not stable \r\n");
-            flag_lvds_chg = 1;
-        }
-    }
-}
-
-
  void LT9211_Reset(void)
 {
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_RESET);
@@ -777,30 +740,10 @@ void LT9211_MainLoop(void)
 
 void LT9211_Pattern_Init(void)
 {
-  static int flag_enter = 1;
-	
-	if(flag_enter == 1) {
-		LT9211_Reset();
-		LT9211_Pattern_Config();
-		flag_enter = 0;
-		printf("LT9211_Pattern_Init \r\n");
-	}
+	LT9211_Reset();
+	LT9211_Pattern_Config();
+	printf("LT9211_Pattern_Init \r\n");
 }
-
-void LT9211_Init2(void)
-{
-  static int flag_enter = 1;
-	
-	if(flag_enter == 1) {
-		LT9211_Reset();
-		flag_enter = 0;
-		LT9211_Config();
-		printf("LT9211_Init \r\n");		
-	}
-	
-	LT9211_MainLoop();
-}
-
 
 int lt9211_get_lvds_clkstb(uint8_t* count)
 {
@@ -861,5 +804,69 @@ void LT9211_Init(void)
 			printf("\r\n LT9211_Init: lvds clk not stable \r\n");
 		}
 }
+
+void LT9211_Pattern_Init2(void)
+{
+  static int flag_enter = 1;
+	
+	if(flag_enter == 1) {	
+		LT9211_Reset();
+		LT9211_Pattern_Config();
+		flag_enter = 0;
+		printf("LT9211_Pattern_Init \r\n");
+	}
+}
+
+#if 0
+void LT9211_MainLoop(void)
+{
+    static int flag_lvds_chg = 1;
+    
+    if( lt9211_lvds_clkstb_check() )
+    {
+        if( flag_lvds_chg )
+        {
+            printf("\r\n lvds clk stable \r\n");
+            LT9211_ClockCheckDebug();
+            LT9211_LvdsRxPll();
+            lt9211_vid_chk_rst();              //video chk soft rst
+            lt9211_lvdsrx_logic_rst();
+            HAL_Delay(200);
+            LT9211_VideoCheck();
+
+            //mipi tx set
+            LT9211_MipiTxpll();					
+            LT9211_MipiTxPhy();
+						LT9211_SetTxTiming2();
+            //InitPanel();
+            LT9211_MipiTxDigital();
+            
+            flag_lvds_chg = 0;
+        }
+    }
+    else
+    {
+        if( !flag_lvds_chg )
+        {
+            printf("\r\n lvds clk not stable \r\n");
+            flag_lvds_chg = 1;
+        }
+    }
+}
+
+void LT9211_Init2(void)
+{
+  static int flag_enter = 1;
+	
+	if(flag_enter == 1) {
+		LT9211_Reset();
+		flag_enter = 0;
+		LT9211_Config();
+		printf("LT9211_Init \r\n");		
+	}
+	
+	LT9211_MainLoop();
+}
+#endif
 
 #endif
