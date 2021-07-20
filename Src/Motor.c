@@ -10,10 +10,12 @@ void MotorStop_UartRes(uint8_t result);
 #define BONGINGNUM  300
 static uint8_t MotorPositon = MOTOR_CENTER;
 static int bongingcount = BONGINGNUM;
-
+uint8_t LimitPosition = LIMIT_LEFT;
 void MotorLimit_DealWith(uint8_t lr)
 {
 	bongingcount = BONGINGNUM;
+	LimitPosition = lr;
+	
 	if(lr == LIMIT_LEFT)
 		MotorPositon = MOTOR_LEFT;
 	else 	if(lr == LIMIT_RIGHT)

@@ -120,12 +120,14 @@ extern HAL_StatusTypeDef SetBootPinMode(void);
 extern void Lcos_CheckRegError(uint8_t local);
 extern 	uint8_t GetFanSpeed(void);
 extern void MotorLimit_DealWith(uint8_t lr);
+extern uint8_t Motor_start(uint8_t dir, uint16_t steps);
 extern void UartCommandParser(void);
 extern void LcosSetColorTempBlock(void);
 #ifdef USE_LT9211_LVDS2MIPI
 extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
 extern int lt9211_get_lvds_clkstb(uint8_t* count);
+extern void LT9211_Video_Reset(void);
 #endif
 /* USER CODE END PV */
 
@@ -160,7 +162,6 @@ void GpioConfig(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);    //FAN_OFF enable Fan
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);    //CX3554_3V3_EN 
 	LcosVideoMute(VIDEO_UNMUTE);
-	//SetRGB_Enable(GPIO_PIN_SET); //LD_EN
 }
 
 void LT89121_Reset(void)
@@ -253,8 +254,8 @@ int main(void)
 	LcosSetFlip();
 	LcosSetKst();
 	LcosSetWP();
+	LcosSetGain();
 	LcosSetColorTempBlock();
-	//LcosSetGain();
 	//LcosInitWec();
 #ifdef USE_LT9211_LVDS2MIPI
 	LT9211_Init();
@@ -372,12 +373,24 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 		Flag_Sxrd241_Alarm = 1;
 	}	
 	
-	if((GPIO_PIN_9 == GPIO_Pin)) /*  LT9211 interrupt */
+#if 0	
+	if((GPIO_PIN_8 == GPIO_Pin)) /* PA8 LT9211 interrupt */
 	{
 		val = HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_9);
 		printf("HAL_GPIO_EXTI_Callback: PD9 val:0x%x \r\n", val);
 		Flag_LT9211_Int = 1;
-	}			
+	}
+#endif
+	
+#ifdef CONFIG_MAT	
+	if((GPIO_PIN_1 == GPIO_Pin)) /* PD1 MAT MODE		*/
+	{
+		val = HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_1);
+		printf("HAL_GPIO_EXTI_Callback: PD1 val:0x%x \r\n", val);
+		Flag_MatMode = 1;
+	}	
+#endif	
+	
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -498,18 +511,7 @@ void SysTask8ms(void)
 
 void SysTask16ms(void)
 {
-#ifdef USE_LT9211_LVDS2MIPI
-	uint8_t count = 20;
 
-	if(!lt9211_get_lvds_clkstb(&count))
-	{
-		if(Flag_Lvds_Clk_Stb)
-		{
-			printf("\r\n lvds clk not stable \r\n");
-			Flag_Lvds_Clk_Stb = 0;
-		}
-	}
-#endif
 }
 
 void SysTask256ms(void)
@@ -526,10 +528,28 @@ void SysTask256ms(void)
 
 void SysTask512ms(void)
 {
+#ifdef USE_LT9211_LVDS2MIPI
+	uint8_t count = 30;
 
+	if(!lt9211_get_lvds_clkstb(&count))
+	{
+		if(Flag_Lvds_Clk_Stb)
+		{
+			printf("\r\n lvds clk not stable \r\n");
+			Flag_Lvds_Clk_Stb = 0;
+		}
+		
+		LT9211_Video_Reset();
+	}
+#endif
 }
 
-extern void LT9211_VideoGet(void);
+#ifdef CONFIG_MAT
+int cnt_1s = 0;
+_Bool Flag_Limit_OK = 1;
+extern uint8_t LimitPosition;
+#endif
+
 void SysTask1s(void)
 {
 #ifdef USE_LT9211_LVDS2MIPI
@@ -540,6 +560,40 @@ void SysTask1s(void)
 	{
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
+/*************************MAT TEST *************************************/	
+#ifdef CONFIG_MAT
+  static int flag_enter = 1;
+
+	if(Flag_MatMode != 0 && flag_enter)
+	{
+#ifdef USE_LT9211_LVDS2MIPI
+		LT9211_Pattern_Init();
+#endif
+		flag_enter = 0;
+	}
+	
+	//motor test
+	if(Flag_MatMode != 0 && Flag_Limit_OK)
+	{
+		if(cnt_1s == 0)
+		{ 
+			if(LimitPosition == LIMIT_LEFT)
+				Motor_start(0, 10000);
+			else
+				Flag_Limit_OK = 0;
+		}
+		else if(cnt_1s == 5)
+		{
+			if(LimitPosition == LIMIT_RIGHT)
+				Motor_start(1, 10000);
+			else
+				Flag_Limit_OK = 0;			
+		}
+			
+		cnt_1s++;
+		if(cnt_1s == 10) cnt_1s = 0;
+	}
+#endif		
 }
 
 void SysTask5s(void)

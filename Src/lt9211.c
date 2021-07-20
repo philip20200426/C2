@@ -774,6 +774,23 @@ int lt9211_get_lvds_clkstb(uint8_t* count)
     return 0;
 }
 
+void LT9211_Video_Reset(void)
+{
+			LT9211_ClockCheckDebug();
+			LT9211_LvdsRxPll();
+			lt9211_vid_chk_rst();              //video chk soft rst
+			lt9211_lvdsrx_logic_rst();
+			HAL_Delay(200);
+			LT9211_VideoCheck();
+
+			//mipi tx set
+			LT9211_MipiTxpll();					
+			LT9211_MipiTxPhy();
+			LT9211_SetTxTiming2();
+			//InitPanel();
+			LT9211_MipiTxDigital();		
+}
+
 void LT9211_Init(void)
 {
 		uint8_t count = 50;
@@ -787,19 +804,7 @@ void LT9211_Init(void)
 		if(lt9211_get_lvds_clkstb(&count))
 		{
 			printf("\r\n LT9211_Init: lvds clk stable count=%d\r\n", count);
-			LT9211_ClockCheckDebug();
-			LT9211_LvdsRxPll();
-			lt9211_vid_chk_rst();              //video chk soft rst
-			lt9211_lvdsrx_logic_rst();
-			HAL_Delay(200);
-			LT9211_VideoCheck();
-
-			//mipi tx set
-			LT9211_MipiTxpll();					
-			LT9211_MipiTxPhy();
-			LT9211_SetTxTiming2();
-			//InitPanel();
-			LT9211_MipiTxDigital();	
+			LT9211_Video_Reset();
 		} else {
 			printf("\r\n LT9211_Init: lvds clk not stable \r\n");
 		}

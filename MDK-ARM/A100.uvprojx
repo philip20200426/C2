@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32G070xx,USE_HAL_DRIVER,USE_LT9211_LVDS2MIPI</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                                                                        ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                                                        ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                                                        ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
+              <IncludePath>../Inc;                                                                                                                              ../Drivers/STM32G0xx_HAL_Driver/Inc;                                                                                                                              ../Drivers/STM32G0xx_HAL_Driver/Inc/Legacy;                                                                                                                              ../Drivers/CMSIS/Device/ST/STM32G0xx/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
