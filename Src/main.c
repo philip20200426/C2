@@ -797,72 +797,88 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 	return (1839 - vol)/11;
 }
 /*-------------------------------------------------------------------------------------------*/	
-const uint8_t LD_CTL_TABLE[][2] =
+const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
-	{30, 20},		
-	{31, 20},	
-	{32, 20},	
-	{33, 20},	
-	{34, 20},
-	{35, 20},
-	{36, 20},	
-	{37, 20},	
-	{38, 20},	
-	{39, 20},	
-	{40, 20},	
-	{41, 20},	
-	{42, 20},	
-	{43, 30},	
-	{44, 30},
+	{45, 25},	
+	{46, 25},	
+	{47, 25},	
+	{48, 25},	
+	{49, 25},	
+	{50, 30},	
+	{51, 35},	
+	{52, 35},	
+	{53, 50},	
+	{54, 70},
+	{55, 100}
+};
+
+const uint8_t LD_CTL_TABLE34[][2] =
+{/* 0~55   45*/	
 	{45, 40},	
 	{46, 40},	
 	{47, 40},	
-	{48, 50},	
-	{49, 60},	
-	{50, 70},	
-	{51, 75},	
-	{52, 70},	
-	{53, 80},	
-	{54, 90},
-	{55, 100},	
-	{56, 100},	
-	{57, 100},	
-	{58, 100},	
-	{59, 100},	
-	{60, 100}
+	{48, 40},	
+	{49, 40},	
+	{50, 45},	
+	{51, 50},	
+	{52, 50},	
+	{53, 65},	
+	{54, 85},
+	{55, 100}
 };
 
-uint8_t get_ld_fanpwm(uint8_t temp)
+uint8_t get_ld_fan12pwm(uint8_t temp)
 {
 	uint8_t i;
+	static uint8_t s_pwm = 0, s_temp = 0;
 	
-	if(temp < LD_CTL_TABLE[0][0]) return LD_CTL_TABLE[0][1];
-		
-	for (i = 0; i < sizeof(LD_CTL_TABLE)/sizeof(uint8_t)/2; i++)
-	{		
-		if(LD_CTL_TABLE[i][0] == temp ) return LD_CTL_TABLE[i][1];
+	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
+	
+	if(temp == s_temp - 1) 
+	{
+		return s_pwm;
 	}
 	
-	return LD_CTL_TABLE[i-1][1];
+	for (i = 0; i < sizeof(LD_CTL_TABLE12)/sizeof(uint8_t)/2; i++)
+	{		
+		if(LD_CTL_TABLE12[i][0] == temp ) 
+		{
+			s_temp = temp;
+			s_pwm = LD_CTL_TABLE12[i][1];
+			return LD_CTL_TABLE12[i][1];
+		}
+	}
+	
+	return LD_CTL_TABLE12[i-1][1];
+}
+
+uint8_t get_ld_fan34pwm(uint8_t temp)
+{
+	uint8_t i;
+	static uint8_t s_pwm = 0, s_temp = 0;
+	
+	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
+	
+	if(temp == s_temp - 1) 
+	{
+		return s_pwm;
+	}	
+	
+	for (i = 0; i < sizeof(LD_CTL_TABLE34)/sizeof(uint8_t)/2; i++)
+	{		
+		if(LD_CTL_TABLE34[i][0] == temp )
+		{
+			s_temp = temp;
+			s_pwm = LD_CTL_TABLE34[i][1];
+			return LD_CTL_TABLE34[i][1];
+		}
+	}
+	
+	return LD_CTL_TABLE34[i-1][1];
 }
 
 const uint8_t LCOS_CTL_TABLE[][2] =
 {/*-10~60    +45 to +55 */
-	{30, 20},	
-	{31, 20},	
-	{32, 20},	
-	{33, 20},	
-	{34, 20},
-	{35, 20},
-	{36, 20},	
-	{37, 20},	
-	{38, 20},	
-	{39, 20},	
-	{40, 20},	
-	{41, 20},	
-	{42, 20},	
-	{43, 20},	
-	{44, 20},
 	{45, 20},	
 	{46, 20},	
 	{47, 25},	
@@ -871,7 +887,7 @@ const uint8_t LCOS_CTL_TABLE[][2] =
 	{50, 30},	
 	{51, 30},	
 	{52, 30},	
-	{53, 40},	
+	{53, 30},	
 	{54, 50},
 	{55, 60},	
 	{56, 70},	
@@ -912,8 +928,8 @@ void Fan_Auto_Control(void)
 	{
 		if(Flag_Projector_On == 1)
 		{
-			SetFan12Speed(get_ld_fanpwm(ld_temp));
-			SetFan34Speed(get_ld_fanpwm(ld_temp));		
+			SetFan12Speed(get_ld_fan12pwm(ld_temp));
+			SetFan34Speed(get_ld_fan34pwm(ld_temp));		
 			SetFan5Speed(get_lcos_fanpwm(lcos_temp));
 		}
 		
