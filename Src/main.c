@@ -531,15 +531,18 @@ void SysTask512ms(void)
 #ifdef USE_LT9211_LVDS2MIPI
 	uint8_t count = 30;
 
-	if(!lt9211_get_lvds_clkstb(&count))
+	if(!Flag_MatMode)
 	{
-		if(Flag_Lvds_Clk_Stb)
+		if(!lt9211_get_lvds_clkstb(&count))
 		{
-			printf("\r\n lvds clk not stable \r\n");
-			Flag_Lvds_Clk_Stb = 0;
+			if(Flag_Lvds_Clk_Stb)
+			{
+				printf("\r\n lvds clk not stable \r\n");
+				Flag_Lvds_Clk_Stb = 0;
+			}
+			
+			LT9211_Video_Reset();
 		}
-		
-		LT9211_Video_Reset();
 	}
 #endif
 }

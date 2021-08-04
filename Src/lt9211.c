@@ -32,9 +32,7 @@ struct video_timing video_1920x1200_60Hz   ={48, 32,  80,1920,  2080,  3,  6,  2
 struct video_timing video_3840x2160_30Hz   ={176,88, 296,3840,  4400,  8,  10, 72, 2160, 2250, 297000};
 struct video_timing video_3840x2160_60Hz   ={176,88, 296,3840,  4400,  8,  10, 72, 2160, 2250, 594000};
 */
-//struct video_timing video ={120, 64, 120,1920,  2224,  38,  4,  8, 1080, 1130, 148500};
 struct video_timing video ={88, 44, 148,1920,  2200,  4,  5,  36, 1080, 1125, 148500};
-
 /*******************************************************************************************************************************************/
 #define LT9211_I2C_ADDR 0x5a
 #define RETRY_CNT 5
@@ -727,7 +725,7 @@ void LT9211_Pattern_Config(void)
 		LT9211_SetTxTiming(&video);
     //InitPanel();
 		LT9211_MipiTxDigital();
-    LT9211_ClockCheckDebug();
+    //LT9211_ClockCheckDebug();
 }
 
  void LT9211_Reset(void)

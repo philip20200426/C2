@@ -68,7 +68,7 @@ char flag_0 = 0;
 extern volatile _Bool g_FanMode;
 extern volatile _Bool Flag_MatMode;
 extern uint16_t g_RGBCurrent[3];
-
+volatile _Bool Flag_PrintPort = 0;
 /* Private function prototypes -----------------------------------------------*/
 unsigned char CharToHex(unsigned char bHex)
 {
@@ -563,7 +563,11 @@ HAL_StatusTypeDef SetBootPinMode(void)
 
 PUTCHAR_PROTOTYPE
 {
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);	
+	if(Flag_PrintPort)
+		HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
+	else
+		HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+	
 	return ch;
 }
 
@@ -1018,6 +1022,13 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 		case CMD_ENTER_MAT:
 		{
 			Flag_MatMode = 1;
+			Uart_Send_Response(head->command, NULL, 0);
+			break;				
+		}	
+
+		case CMD_ENTER_PRINT_UART0:
+		{
+			Flag_PrintPort = 1;
 			Uart_Send_Response(head->command, NULL, 0);
 			break;				
 		}	

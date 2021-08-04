@@ -14,7 +14,7 @@
 #define INPUT_PORTA
 #define INPUT_PORTB
 
-#define MIPI_DATA_LANE_SWAP
+//#define MIPI_DATA_LANE_SWAP
 
 #define INPUT_PORT_NUM 2
 

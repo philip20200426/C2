@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	6  //vbyone 4
+#define VERSION2 	7  //vbyone 4
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
 #define CMD_ERROR								0
@@ -44,8 +44,6 @@
 #define CMD_GET_VERSION					22
 #define CMD_GET_TEMPS						23
 
-
-
 #define CMD_SET_CURRENTS				30
 #define CMD_SET_FANS						31
 #define CMD_SET_FOCUSMOTOR			32
@@ -54,8 +52,8 @@
 
 #define CMD_SAVE_PARAMRTER			40
 #define CMD_CLR_PARAMRTER				41
-
-#define CMD_ENTER_MAT						50
+#define CMD_ENTER_MAT						42
+#define CMD_ENTER_PRINT_UART0		43
 
 #define PACKAGE_DATA_BASE 			6
 /* Private typedef -----------------------------------------------------------*/
