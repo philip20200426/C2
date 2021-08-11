@@ -16,7 +16,7 @@ uint16_t htotal, vtotal;
 uint16_t hfp, vfp;
 uint8_t VideoFormat=0;
 uint32_t lvds_clk_in = 0;
-
+uint8_t Flag_LT9211_Pattern = 0;
 enum VideoFormat Video_Format;
 //hfp, hs, hbp,hact,htotal,vfp, vs, vbp, vact,vtotal,
 /*
@@ -725,7 +725,7 @@ void LT9211_Pattern_Config(void)
 		LT9211_SetTxTiming(&video);
     //InitPanel();
 		LT9211_MipiTxDigital();
-    //LT9211_ClockCheckDebug();
+    LT9211_ClockCheckDebug();
 }
 
  void LT9211_Reset(void)
@@ -740,6 +740,7 @@ void LT9211_Pattern_Init(void)
 {
 	LT9211_Reset();
 	LT9211_Pattern_Config();
+	Flag_LT9211_Pattern = 1;
 	printf("LT9211_Pattern_Init \r\n");
 }
 
@@ -797,6 +798,8 @@ void LT9211_Init(void)
 	
 	  if(!LT9211_ChipID()) return;
 	
+		Flag_LT9211_Pattern = 0;
+	
 		LT9211_Config();
 
 		if(lt9211_get_lvds_clkstb(&count))
@@ -808,6 +811,12 @@ void LT9211_Init(void)
 		}
 }
 
+uint8_t get_LT9211_Mode(void)
+{
+		return Flag_LT9211_Pattern;
+}
+
+#if 0
 void LT9211_Pattern_Init2(void)
 {
   static int flag_enter = 1;
@@ -820,7 +829,7 @@ void LT9211_Pattern_Init2(void)
 	}
 }
 
-#if 0
+
 void LT9211_MainLoop(void)
 {
     static int flag_lvds_chg = 1;

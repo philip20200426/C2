@@ -49,6 +49,7 @@
 #define CMD_SET_FOCUSMOTOR			32
 #define CMD_SET_SONY_TOOL				33
 #define CMD_SET_LT9211_TEST			34
+#define CMD_SET_LCOS_TEST				35
 
 #define CMD_SAVE_PARAMRTER			40
 #define CMD_CLR_PARAMRTER				41
@@ -107,6 +108,10 @@ typedef enum
 	PARA_LED,
 	PARA_FRC,
 	PARA_MISC,
+	PARA_BCHSCE,
+	PARA_BCHS,
+	PARA_CE1D,
+	PARA_CEBC,
 	PARA_MAX	
 }PARA_Type;
 
@@ -156,11 +161,32 @@ struct Parameter_Wp
     uint8_t  val[WP_REG_NUM];		
 };
 
+struct Parameter_Bchs
+{
+    uint8_t  valid;
+    uint8_t  val[BCHS_REG_NUM];
+};
+
+struct Parameter_Ce_1d
+{
+    uint8_t  valid;
+    uint8_t  val[CE_1D_REG_NUM];
+};
+
+struct Parameter_Ce_bc
+{
+    uint8_t  valid;
+    uint8_t  val[CE_BC_REG_NUM];
+};
+
 struct Projector_parameter{
 		struct Parameter_Gain gain;
 		struct Parameter_Flip flip;
 		struct Parameter_Kst kst;
 		struct Parameter_Wp wp;	
+		struct Parameter_Bchs bchs;
+		struct Parameter_Ce_1d ce_1d;
+		struct Parameter_Ce_bc ce_bc;
 		uint8_t  Reserved[8];
 };
 
@@ -202,7 +228,7 @@ struct Projector_Color_Temp{
 		struct Parameter_Sxrd241 reg_241;
 		struct Parameter_Led reg_led;
 		struct Parameter_Frc reg_frc;
-		struct Parameter_Frc reg_misc;
+		struct Parameter_Misc reg_misc;
 		uint8_t  Reserved[8];
 };
 

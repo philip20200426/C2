@@ -31,6 +31,7 @@ extern void LT9211_Pattern_Init(void);
 #endif
 
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
+void LcosSetFlip(void);
 uint8_t GetFan1Speed(void);
 uint8_t GetFan2Speed(void);
 uint8_t GetFan3Speed(void);
@@ -308,17 +309,19 @@ void GetParameter(void)
 	/* Check the correctness of written data */
 	Projector_Config = (uint32_t *)&g_projector_para;
 	Address = FLASH_USER_START_ADDR;
+	printf("GetParameter size=%d \r\n",sizeof(struct Projector_parameter));
+	
 	for(i=0 ;i<sizeof(struct Projector_parameter)/4 ;i++)
 	{
 		Projector_Config[i] = *(__IO uint32_t*) Address	;
 		Address += 4;
 	}
-#if 0	
-	printf("rgb:0x%x 0x%x 0x%x \r\n",g_projector_para.current.r, g_projector_para.current.g, g_projector_para.current.b);
+#if 1	
 	printf("kst:0x%x \r\n",g_projector_para.kst.valid);	
 	printf("flip:0x%x \r\n",g_projector_para.flip.valid);
-	printf("gama:0x%x \r\n",g_projector_para.gama.valid);
 	printf("wp:0x%x \r\n",g_projector_para.wp.valid);	
+	printf("bchs:0x%x \r\n",g_projector_para.bchs.valid);
+	printf("ce1d:0x%x \r\n",g_projector_para.ce_1d.valid);
 #endif
 	return;
 }
@@ -348,73 +351,6 @@ void GetColorTempParameter(void)
 	printf("led:0x%x \r\n",g_color_temp.reg_led.valid);
 	printf("frc:0x%x \r\n",g_color_temp.reg_frc.valid);
 #endif
-	return;
-}
-
-void SetParameter(void)
-{
-	uint32_t FirstPage = 0, NbOfPages = 0;
-	uint32_t Address = 0, PageError = 0;
-	FLASH_EraseInitTypeDef EraseInitStruct;
-	uint64_t *projector_Config;
-	uint32_t i;
-
-	projector_Config =  (uint64_t *)&g_projector_para;
-
-  /* Unlock the Flash to enable the flash control register access *************/
-  HAL_FLASH_Unlock();
-  
-  /* Erase the user Flash area
-    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
-
-  /* Get the 1st page to erase */
-  FirstPage = GetPage(FLASH_USER_START_ADDR);
-
-  /* Get the number of pages to erase from 1st page */
-  NbOfPages = GetPage(FLASH_USER_END_ADDR) - FirstPage + 1;
-
-  /* Fill EraseInit structure*/
-  EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
-  EraseInitStruct.Page        = FirstPage;
-  EraseInitStruct.NbPages     = NbOfPages;	
-	
-	printf("SetParameter FirstPage[%d] NbOfPages[%d]\r\n",FirstPage, NbOfPages);
- 
-  /* Note: If an erase operation in Flash memory also concerns data in the data or instruction cache,
-     you have to make sure that these data are rewritten before they are accessed during code
-     execution. If this cannot be done safely, it is recommended to flush the caches by setting the
-     DCRST and ICRST bits in the FLASH_CR register. */
-  if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
-  {
-    /*
-      Error occurred while page erase.
-      User can add here some code to deal with this error.
-      PageError will contain the faulty page and then to know the code error on this page,
-      user can call function 'HAL_FLASH_GetError()'
-    */
-		printf("HAL_FLASHEx_Erase errcode[%d]\r\n",HAL_FLASH_GetError());
-  }
-  /* Program the user Flash area word by word
-    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
-
-  Address = FLASH_USER_START_ADDR;
-	for(i=0 ;i<sizeof(struct Projector_parameter)/8 ;i++)
-	{
-		if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, Address, *projector_Config) == HAL_OK)
-		{
-			Address = Address + 8;
-			projector_Config = projector_Config + 1;
-		} else {
-		/* Error occurred while writing data in Flash memory.
-			 User can add here some code to deal with this error */
-			printf("HAL_FLASH_Program errcode[%d]\r\n",HAL_FLASH_GetError());				
-		}
-	}
-
-  /* Lock the Flash to disable the flash control register access (recommended
-     to protect the FLASH memory against possible unwanted operation) *********/
-  HAL_FLASH_Lock();
-	
 	return;
 }
 
@@ -502,6 +438,79 @@ _Bool SetUserParameterEx(void *buf,  uint32_t size, uint32_t user_start_addr, ui
 	return 1;
 }
 
+#if 0
+void SetParameter(void)
+{
+	uint32_t FirstPage = 0, NbOfPages = 0;
+	uint32_t Address = 0, PageError = 0;
+	FLASH_EraseInitTypeDef EraseInitStruct;
+	uint64_t *projector_Config;
+	uint32_t i;
+
+	projector_Config =  (uint64_t *)&g_projector_para;
+
+  /* Unlock the Flash to enable the flash control register access *************/
+  HAL_FLASH_Unlock();
+  
+  /* Erase the user Flash area
+    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+  /* Get the 1st page to erase */
+  FirstPage = GetPage(FLASH_USER_START_ADDR);
+
+  /* Get the number of pages to erase from 1st page */
+  NbOfPages = GetPage(FLASH_USER_END_ADDR) - FirstPage + 1;
+
+  /* Fill EraseInit structure*/
+  EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+  EraseInitStruct.Page        = FirstPage;
+  EraseInitStruct.NbPages     = NbOfPages;	
+	
+	printf("SetParameter FirstPage[%d] NbOfPages[%d]\r\n",FirstPage, NbOfPages);
+ 
+  /* Note: If an erase operation in Flash memory also concerns data in the data or instruction cache,
+     you have to make sure that these data are rewritten before they are accessed during code
+     execution. If this cannot be done safely, it is recommended to flush the caches by setting the
+     DCRST and ICRST bits in the FLASH_CR register. */
+  if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+  {
+    /*
+      Error occurred while page erase.
+      User can add here some code to deal with this error.
+      PageError will contain the faulty page and then to know the code error on this page,
+      user can call function 'HAL_FLASH_GetError()'
+    */
+		printf("HAL_FLASHEx_Erase errcode[%d]\r\n",HAL_FLASH_GetError());
+  }
+  /* Program the user Flash area word by word
+    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+  Address = FLASH_USER_START_ADDR;
+	for(i=0 ;i<sizeof(struct Projector_parameter)/8 ;i++)
+	{
+		if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, Address, *projector_Config) == HAL_OK)
+		{
+			Address = Address + 8;
+			projector_Config = projector_Config + 1;
+		} else {
+		/* Error occurred while writing data in Flash memory.
+			 User can add here some code to deal with this error */
+			printf("HAL_FLASH_Program errcode[%d]\r\n",HAL_FLASH_GetError());				
+		}
+	}
+
+  /* Lock the Flash to disable the flash control register access (recommended
+     to protect the FLASH memory against possible unwanted operation) *********/
+  HAL_FLASH_Lock();
+	
+	return;
+}
+#else
+void SetParameter(void)
+{
+	SetUserParameterEx((void*)&g_projector_para, sizeof(struct Projector_parameter), FLASH_USER_START_ADDR, FLASH_USER_START_ADDR);
+}
+#endif
 HAL_StatusTypeDef SetBootPinMode(void)
 {
 	FLASH_OBProgramInitTypeDef pOBInit;
@@ -689,18 +698,6 @@ void Uart_Save_Parameter(uint8_t* pData)
 	
 		switch(type)
 		{
-			case PARA_CURRENT:
-			{
-				g_pColorTemp->current.valid = PARAMETER_VALID;
-				g_pColorTemp->current.r = g_RGBCurrent[0];
-				g_pColorTemp->current.g = g_RGBCurrent[1];
-				g_pColorTemp->current.b = g_RGBCurrent[2];	
-	
-				Uart_Set_RGB_Current(g_pColorTemp->current.r, g_pColorTemp->current.g, g_pColorTemp->current.b); 	
-				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
-				break;
-			}
-			
 			case PARA_FLIP:
 			{
 				g_projector_para.flip.valid = PARAMETER_VALID;
@@ -728,6 +725,74 @@ void Uart_Save_Parameter(uint8_t* pData)
 				break;
 			}	
 			
+			case PARA_WP:
+			{
+				g_projector_para.wp.valid = PARAMETER_VALID;
+				for(i = 0; i < WP_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x3500+i, &g_projector_para.wp.val[i]);
+				}
+				SetParameter();
+				break;
+			}
+
+			case PARA_BCHSCE:
+			{
+				g_projector_para.bchs.valid = PARAMETER_VALID;
+				for(i = 0; i < BCHS_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_BCHS_BASEADDRESS + i, &g_projector_para.bchs.val[i]);
+				}
+				
+				g_projector_para.ce_1d.valid = PARAMETER_VALID;
+				for(i = 0; i < CE_1D_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_CE1D_BASEADDRESS + i, &g_projector_para.ce_1d.val[i]);
+				}
+				
+				SetParameter();
+				break;
+			}
+			
+			case PARA_BCHS:
+			{
+				g_projector_para.bchs.valid = PARAMETER_VALID;
+				for(i = 0; i < BCHS_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_BCHS_BASEADDRESS + i, &g_projector_para.bchs.val[i]);
+				}
+				SetParameter();
+				break;
+			}
+
+			case PARA_CE1D:
+			{
+				g_projector_para.ce_1d.valid = PARAMETER_VALID;
+				for(i = 0; i < CE_1D_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_CE1D_BASEADDRESS + i, &g_projector_para.ce_1d.val[i]);
+				}
+				SetParameter();
+				break;
+			}
+
+			case PARA_CEBC:
+			{
+				g_projector_para.ce_bc.valid = PARAMETER_VALID;
+				for(i = 0; i < CE_BC_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_CEBC_BASEADDRESS + i, &g_projector_para.ce_bc.val[i]);
+				}
+				SetParameter();
+				break;
+			}
+
+			case PARA_CURRENT:
+			{
+				g_pColorTemp->current.valid = PARAMETER_VALID;
+				g_pColorTemp->current.r = g_RGBCurrent[0];
+				g_pColorTemp->current.g = g_RGBCurrent[1];
+				g_pColorTemp->current.b = g_RGBCurrent[2];
+
+				Uart_Set_RGB_Current(g_pColorTemp->current.r, g_pColorTemp->current.g, g_pColorTemp->current.b);
+				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
+				break;
+			}
+
 			case PARA_COLOR_TEMP:
 			{
 				g_pColorTemp->current.valid = PARAMETER_VALID;
@@ -762,17 +827,6 @@ void Uart_Save_Parameter(uint8_t* pData)
 				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
 				break;
 			}		
-			
-			case PARA_WP:
-			{
-				g_projector_para.wp.valid = PARAMETER_VALID;
-				for(i = 0; i < WP_REG_NUM; i++) {
-					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, 0x3500+i, &g_projector_para.wp.val[i]);
-				}
-				SetParameter();
-				break;
-			}		
-
 			
 		default:
 			break;
@@ -847,7 +901,37 @@ void Uart_Clear_Parameter(uint8_t* pData)
 				g_projector_para.wp.valid = PARAMETER_INVALID;
 				SetParameter();
 				break;
-			}		
+			}
+
+			case PARA_BCHSCE:
+			{
+				g_projector_para.bchs.valid = PARAMETER_INVALID;
+				g_projector_para.ce_1d.valid = PARAMETER_INVALID;
+				g_projector_para.ce_bc.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}
+			
+			case PARA_BCHS:
+			{
+				g_projector_para.bchs.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}
+
+			case PARA_CE1D:
+			{
+				g_projector_para.ce_1d.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}
+
+			case PARA_CEBC:
+			{
+				g_projector_para.ce_bc.valid = PARAMETER_INVALID;
+				SetParameter();
+				break;
+			}
 
 		default:
 			break;
@@ -922,6 +1006,14 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Uart_Send_Response(head->command, NULL, 0);
 			break;			
 		}	
+
+		case CMD_SET_LCOS_TEST:
+		{
+			LcosInitSequence();
+			LcosSetFlip();
+			Uart_Send_Response(head->command, NULL, 0);
+			break;			
+		}			
 		
 		case CMD_SET_CURRENTS:
 		{
@@ -1520,6 +1612,31 @@ void LcosSetColorTempBlock(void)
 	
 	//SetRGBCurrent();
 }
+
+void LcosSetBchs(void)
+{
+	if(g_projector_para.bchs.valid == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_BCHS_BASEADDRESS, g_projector_para.bchs.val, BCHS_REG_NUM);
+	}
+}
+
+void LcosSetCe1d(void)
+{
+	if(g_projector_para.ce_1d.valid == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_CE1D_BASEADDRESS, g_projector_para.ce_1d.val, CE_1D_REG_NUM);
+	}
+}
+
+void LcosSetCebc(void)
+{
+	if(g_projector_para.ce_bc.valid == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_CEBC_BASEADDRESS, g_projector_para.ce_bc.val, CE_BC_REG_NUM);
+	}
+}
+
 /* tim ------------------------------------------------------------------*/
 uint8_t FanSpeedConvert(uint32_t speed)
 {
@@ -1964,11 +2081,11 @@ uint16_t adc_GetAdcVal(uint16_t *val)
 	return get_ADC_DmaValue(0, val);	
 }
 
+/* Globle ------------------------------------------------------------------*/
 extern void StepperVar_Init(void);
 void Variables_Init(void)
 {
 	memset(&asu_rec_data,0x00,sizeof(struct asu_date));
 	StepperVar_Init();
-	
 }
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

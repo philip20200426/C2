@@ -123,11 +123,15 @@ extern void MotorLimit_DealWith(uint8_t lr);
 extern uint8_t Motor_start(uint8_t dir, uint16_t steps);
 extern void UartCommandParser(void);
 extern void LcosSetColorTempBlock(void);
+extern void LcosSetBchs(void);
+extern void LcosSetCe1d(void);
+extern void LcosSetCebc(void);
 #ifdef USE_LT9211_LVDS2MIPI
 extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
 extern int lt9211_get_lvds_clkstb(uint8_t* count);
 extern void LT9211_Video_Reset(void);
+extern uint8_t get_LT9211_Mode(void);
 #endif
 /* USER CODE END PV */
 
@@ -225,16 +229,16 @@ int main(void)
   //MX_IWDG_Init();
   MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
-	printf("main() Projector_parameter size=%d \r\n",sizeof(struct Projector_parameter));
 
-	Variables_Init();
   GetParameter();
 	GetColorTempParameter();
+
+	Variables_Init();
   GpioConfig();	
 #if 1	
-	SetFan12Speed(20);
-	SetFan34Speed(20);
-  SetFan5Speed(20);
+	SetFan12Speed(25);
+	SetFan34Speed(40);
+  SetFan5Speed(30);
 #else
 	SetFan12Speed(FAN_SPEED_FULL);
 	SetFan34Speed(FAN_SPEED_FULL);
@@ -255,7 +259,11 @@ int main(void)
 	LcosSetKst();
 	LcosSetWP();
 	LcosSetGain();
+	LcosSetBchs();
+	LcosSetCe1d();
+	LcosSetCebc();
 	LcosSetColorTempBlock();
+
 	//LcosInitWec();
 #ifdef USE_LT9211_LVDS2MIPI
 	LT9211_Init();
@@ -530,8 +538,8 @@ void SysTask512ms(void)
 {
 #ifdef USE_LT9211_LVDS2MIPI
 	uint8_t count = 30;
-
-	if(!Flag_MatMode)
+	
+	if(!get_LT9211_Mode())
 	{
 		if(!lt9211_get_lvds_clkstb(&count))
 		{
