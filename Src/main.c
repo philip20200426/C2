@@ -126,6 +126,7 @@ extern void LcosSetColorTempBlock(void);
 extern void LcosSetBchs(void);
 extern void LcosSetCe1d(void);
 extern void LcosSetCebc(void);
+
 #ifdef USE_LT9211_LVDS2MIPI
 extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
@@ -252,7 +253,6 @@ int main(void)
   LcosSetPatternSize();
   LcosSetIntPattern();
 	LcosSetRRGGBBGGMode();
-	LcosInitGamma();
 	LcosSetIntBCHS();
 	
 	LcosSetFlip();
