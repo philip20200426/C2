@@ -584,7 +584,7 @@ void CXD3554_LPDDR2Block_Settings(void)
 }
 
 void CXD3554_DDR2Block_Settings(void)
-{
+{// 1066
 	I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0801, 0x04);
 	I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0808, 0xAB);
 	I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0809, 0xA0);

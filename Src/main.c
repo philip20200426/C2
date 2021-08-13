@@ -808,6 +808,37 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 	return (1839 - vol)/11;
 }
 /*-------------------------------------------------------------------------------------------*/	
+#if 1
+const uint8_t LD_CTL_TABLE12[][2] =
+{/* 0~55   45*/	
+	{45, 40},	
+	{46, 40},	
+	{47, 40},	
+	{48, 40},	
+	{49, 40},	
+	{50, 40},	
+	{51, 50},	
+	{52, 60},	
+	{53, 70},	
+	{54, 80},
+	{55, 100}
+};
+
+const uint8_t LD_CTL_TABLE34[][2] =
+{/* 0~55   45*/	
+	{45, 60},	
+	{46, 60},	
+	{47, 60},	
+	{48, 60},	
+	{49, 60},	
+	{50, 60},	
+	{51, 70},	
+	{52, 80},	
+	{53, 90},	
+	{54, 95},
+	{55, 100}
+};
+#else
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
 	{45, 25},	
@@ -837,7 +868,7 @@ const uint8_t LD_CTL_TABLE34[][2] =
 	{54, 85},
 	{55, 100}
 };
-
+#endif
 uint8_t get_ld_fan12pwm(uint8_t temp)
 {
 	uint8_t i;
@@ -845,7 +876,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
 	
-	if(temp == s_temp - 1) 
+	if(temp == s_temp - 1 || temp == s_temp - 2) 
 	{
 		return s_pwm;
 	}
@@ -870,7 +901,7 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
 	
-	if(temp == s_temp - 1) 
+	if(temp == s_temp - 1 || temp == s_temp - 2)
 	{
 		return s_pwm;
 	}	
