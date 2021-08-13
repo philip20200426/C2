@@ -254,15 +254,16 @@ int main(void)
   LcosSetIntPattern();
 	LcosSetRRGGBBGGMode();
 	LcosSetIntBCHS();
-	
+
+	LcosSetColorTempBlock();
 	LcosSetFlip();
 	LcosSetKst();
 	LcosSetWP();
-	LcosSetGain();
+	//LcosSetGain();
 	LcosSetBchs();
 	LcosSetCe1d();
 	LcosSetCebc();
-	LcosSetColorTempBlock();
+
 
 	//LcosInitWec();
 #ifdef USE_LT9211_LVDS2MIPI
