@@ -1534,7 +1534,7 @@ void LcosSetSxrd241(void)
 		{
 			for(i = 0; i < SXRD241_REG_NUM; i++) {
 				I2cWriteSxmb241(SXRD241_I2C_ADDRESS, i, g_pColorTemp->reg_241.val[i]);
-				printf("reg[%d]=0x%x\r\n", i, g_pColorTemp->reg_241.val[i]);
+				//printf("reg[%d]=0x%x\r\n", i, g_pColorTemp->reg_241.val[i]);
 			}
 		}
 		
