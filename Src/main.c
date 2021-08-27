@@ -100,6 +100,7 @@ volatile _Bool Flag_Lvds_Clk_Stb = 1;
 volatile _Bool Flag_LT9211_Int = 0;
 volatile _Bool g_FanMode = 0;
 volatile _Bool Flag_MatMode = 0;
+volatile _Bool FlagIwdg = 1;
 uint16_t g_overtemp_cnt = 0;
 uint32_t g_fan_value;
 
@@ -126,7 +127,7 @@ extern void LcosSetColorTempBlock(void);
 extern void LcosSetBchs(void);
 extern void LcosSetCe1d(void);
 extern void LcosSetCebc(void);
-
+extern uint8_t getIwdgFlag(void);
 #ifdef USE_LT9211_LVDS2MIPI
 extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
@@ -178,13 +179,6 @@ void LT89121_Reset(void)
 
 #define CONFIG_IWDG
 
-void Clear_WatchDog(void)
-{
-#ifdef CONFIG_IWDG
-		/* Refresh the IWDG 4S overflow*/
-		HAL_IWDG_Refresh(&hiwdg);
-#endif
-}
 /* USER CODE END 0 */
 
 /**
@@ -252,14 +246,13 @@ int main(void)
   LcosInitSequence();
   LcosSetPatternSize();
   LcosSetIntPattern();
-	LcosSetRRGGBBGGMode();
+	//LcosSetRRGGBBGGMode();
 	LcosSetIntBCHS();
 
 	LcosSetColorTempBlock();
 	LcosSetFlip();
 	LcosSetKst();
 	LcosSetWP();
-	//LcosSetGain();
 	LcosSetBchs();
 	LcosSetCe1d();
 	LcosSetCebc();
@@ -268,6 +261,7 @@ int main(void)
 	//LcosInitWec();
 #ifdef USE_LT9211_LVDS2MIPI
 	LT9211_Init();
+	//LT9211_Pattern_Init();
 #else
 	LT89121_Reset();
 #endif
@@ -276,7 +270,10 @@ int main(void)
 	SetBootPinMode();
 	ReceiveUart1Data();
 #ifdef CONFIG_IWDG	
-  MX_IWDG_Init();
+	if(getIwdgFlag() != 0)
+	{
+		MX_IWDG_Init();
+	}
 #endif
   /* USER CODE END 2 */
 
@@ -288,9 +285,13 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     SysTaskDispatch();
+
 #ifdef CONFIG_IWDG
-		/* Refresh the IWDG 4S overflow*/
-		HAL_IWDG_Refresh(&hiwdg);
+		if(getIwdgFlag() != 0)
+		{
+			/* Refresh the IWDG 4S overflow*/
+			HAL_IWDG_Refresh(&hiwdg);
+		}
 #endif
   }
   /* USER CODE END 3 */

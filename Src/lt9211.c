@@ -35,7 +35,7 @@ struct video_timing video_3840x2160_60Hz   ={176,88, 296,3840,  4400,  8,  10, 7
 struct video_timing video ={88, 44, 148,1920,  2200,  4,  5,  36, 1080, 1125, 148500};
 /*******************************************************************************************************************************************/
 #define LT9211_I2C_ADDR 0x5a
-#define RETRY_CNT 5
+#define RETRY_CNT 2
 uint8_t HDMI_WriteI2C_Byte(uint8_t RegAddr, uint8_t data)
 {
 		uint8_t ret, retry_cnt = RETRY_CNT;
@@ -749,10 +749,16 @@ int lt9211_get_lvds_clkstb(uint8_t* count)
     uint8_t porta_clk_state = 0;
     uint8_t portb_clk_state = 0;
 		uint8_t cnt = *count;
+		uint8_t ret;
 	
 		while(cnt--)
 		{
-				HDMI_WriteI2C_Byte(0xff,0x86);
+				ret = HDMI_WriteI2C_Byte(0xff,0x86);
+				if(ret != HAL_OK) {
+					printf("lt9211_get_lvds_clkstb: I2c transfer error. \r\n");
+					return 1;
+				}
+				
 				HDMI_WriteI2C_Byte(0x00,0x01);
 				HAL_Delay(1);
 				porta_clk_state = (HDMI_ReadI2C_Byte(0x08) & (0x20));
@@ -775,6 +781,7 @@ int lt9211_get_lvds_clkstb(uint8_t* count)
 
 void LT9211_Video_Reset(void)
 {
+			printf("\r\n LT9211_Video_Reset....... \r\n");
 			LT9211_ClockCheckDebug();
 			LT9211_LvdsRxPll();
 			lt9211_vid_chk_rst();              //video chk soft rst

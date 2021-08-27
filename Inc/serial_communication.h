@@ -43,13 +43,14 @@
 #define CMD_GET_FANS						21
 #define CMD_GET_VERSION					22
 #define CMD_GET_TEMPS						23
+#define CMD_GET_IWDG_FLAG				25
 
 #define CMD_SET_CURRENTS				30
 #define CMD_SET_FANS						31
 #define CMD_SET_FOCUSMOTOR			32
 #define CMD_SET_SONY_TOOL				33
 #define CMD_SET_LT9211_TEST			34
-#define CMD_SET_LCOS_TEST				35
+#define CMD_SET_IWDG_FLAG				35
 
 #define CMD_SAVE_PARAMRTER			40
 #define CMD_CLR_PARAMRTER				41
@@ -187,6 +188,7 @@ struct Projector_parameter{
 		struct Parameter_Bchs bchs;
 		struct Parameter_Ce_1d ce_1d;
 		struct Parameter_Ce_bc ce_bc;
+		uint8_t iwdg_flag;
 		uint8_t  Reserved[8];
 };
 

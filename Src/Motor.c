@@ -6,6 +6,7 @@
 
 extern void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
 void MotorStop_UartRes(uint8_t result);
+uint8_t getMotorStatus(void);
 
 #define BONGINGNUM  300
 static uint8_t MotorPositon = MOTOR_CENTER;
@@ -13,6 +14,8 @@ static int bongingcount = BONGINGNUM;
 uint8_t LimitPosition = LIMIT_LEFT;
 void MotorLimit_DealWith(uint8_t lr)
 {
+	if(getMotorStatus() == 0) return;
+	
 	bongingcount = BONGINGNUM;
 	LimitPosition = lr;
 	
@@ -263,6 +266,7 @@ typedef struct Stepper_Driving_Stu
 	uint16_t count_steps; //	
 	uint16_t num_steps; // number of steps to move
 	uint16_t speed; //speed of motor once running
+	uint8_t status; // 0 - stop  1 - running
 	
 } Stepper_Driving_Stu_t;
 
@@ -272,12 +276,14 @@ void StepperVar_Init(void)
 {
 	memset(&gStepper, 0, sizeof(struct Stepper_Driving_Stu));
 	gStepper.num_steps = 1;
+	gStepper.status = 0;
 }
 
 void Motor_Stop(void)
 {
 	HAL_TIM_PWM_Stop_IT(&htim16,TIM_CHANNEL_1);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_8, GPIO_PIN_RESET); //enter sleep	
+	gStepper.status = 0;
 }
 
 void MotorStop_UartRes(uint8_t result)
@@ -299,7 +305,14 @@ uint8_t Motor_start(uint8_t dir, uint16_t steps)
 	
 	//HAL_TIM_OC_Start_IT(&htim16, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start_IT(&htim16, TIM_CHANNEL_1);
+	
+	gStepper.status = 1;
 	return 0;
+}
+
+uint8_t getMotorStatus(void)
+{
+	return 	gStepper.status;
 }
 
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)

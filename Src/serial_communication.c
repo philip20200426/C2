@@ -1007,11 +1007,12 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			break;			
 		}	
 
-		case CMD_SET_LCOS_TEST:
+		case CMD_SET_IWDG_FLAG:
 		{
-			LcosInitSequence();
-			LcosSetFlip();
+			g_projector_para.iwdg_flag = pRx[PACKAGE_DATA_BASE];
+			SetParameter();	
 			Uart_Send_Response(head->command, NULL, 0);
+
 			break;			
 		}			
 		
@@ -1110,7 +1111,13 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Uart_Send_Response(head->command, buf, 3);
 			break;			
 		}
-
+		case CMD_GET_IWDG_FLAG:
+		{
+			buf[0] = g_projector_para.iwdg_flag;		
+			Uart_Send_Response(head->command, buf, 1);
+			break;			
+		}
+		
 		case CMD_ENTER_MAT:
 		{
 			Flag_MatMode = 1;
@@ -2087,5 +2094,10 @@ void Variables_Init(void)
 {
 	memset(&asu_rec_data,0x00,sizeof(struct asu_date));
 	StepperVar_Init();
+}
+
+uint8_t getIwdgFlag(void)
+{
+	return g_projector_para.iwdg_flag;
 }
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
