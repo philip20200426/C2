@@ -257,8 +257,7 @@ int main(void)
 	LcosSetCe1d();
 	LcosSetCebc();
 
-
-	//LcosInitWec();
+	LcosInitWec();
 #ifdef USE_LT9211_LVDS2MIPI
 	LT9211_Init();
 	//LT9211_Pattern_Init();

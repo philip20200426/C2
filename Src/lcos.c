@@ -280,13 +280,13 @@ void CXD3554_SHP_ON_Setting(void)
 	I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x192D, 0x04);
 }
 
-#if 0
+
 #include "lcos_wec.h"
 void LcosInitWec(void)
 {
    I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, 0x1D20, cxd3554_wec, WEC_REG_NUM);
 }
-#endif
+
 //zyz add
 #if 1
 /*================================================================================================================================*/
