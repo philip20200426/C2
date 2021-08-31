@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	10  //vbyone 4
+#define VERSION2 	11  //vbyone 4
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
 #define CMD_ERROR								0
@@ -51,6 +51,7 @@
 #define CMD_SET_SONY_TOOL				33
 #define CMD_SET_LT9211_TEST			34
 #define CMD_SET_IWDG_FLAG				35
+#define CMD_SET_DISPLAY					36
 
 #define CMD_SAVE_PARAMRTER			40
 #define CMD_CLR_PARAMRTER				41

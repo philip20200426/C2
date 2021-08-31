@@ -14,7 +14,7 @@ static int bongingcount = BONGINGNUM;
 uint8_t LimitPosition = LIMIT_LEFT;
 void MotorLimit_DealWith(uint8_t lr)
 {
-	if(getMotorStatus() == 0) return;
+	//if(getMotorStatus() == 0) return;
 	
 	bongingcount = BONGINGNUM;
 	LimitPosition = lr;

@@ -29,6 +29,7 @@ extern uint8_t GetRGBCurrent(uint8_t rgb);
 extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
 #endif
+extern void display_on(uint16_t on);
 
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
 void LcosSetFlip(void);
@@ -1012,7 +1013,17 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			g_projector_para.iwdg_flag = pRx[PACKAGE_DATA_BASE];
 			SetParameter();	
 			Uart_Send_Response(head->command, NULL, 0);
-
+			break;			
+		}			
+	
+		case CMD_SET_DISPLAY:
+		{
+			if(pRx[PACKAGE_DATA_BASE] == 0)
+				display_on(0);
+			else 
+				display_on(1);
+			
+			Uart_Send_Response(head->command, NULL, 0);
 			break;			
 		}			
 		
