@@ -99,6 +99,7 @@ volatile _Bool Flag_Projector_On = 1;
 volatile _Bool Flag_Lvds_Clk_Stb = 1;
 volatile _Bool Flag_LT9211_Int = 0;
 volatile _Bool g_FanMode = 0;
+volatile _Bool g_UserDisplayOff = 0;
 volatile _Bool Flag_MatMode = 0;
 volatile _Bool FlagIwdg = 1;
 uint16_t g_overtemp_cnt = 0;
@@ -233,7 +234,7 @@ int main(void)
 #if 1	
 	SetFan12Speed(25);
 	SetFan34Speed(40);
-  SetFan5Speed(30);
+	SetFan5Speed(10);	
 #else
 	SetFan12Speed(FAN_SPEED_FULL);
 	SetFan34Speed(FAN_SPEED_FULL);
@@ -812,7 +813,11 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 #if 1
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
-	{45, 40},	
+	{41, 0},	
+	{42, 10},		
+	{43, 20},		
+	{44, 30},	
+	{45, 40},	//
 	{46, 40},	
 	{47, 40},	
 	{48, 40},	
@@ -826,7 +831,11 @@ const uint8_t LD_CTL_TABLE12[][2] =
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
-{/* 0~55   45*/	
+{/* 0~55   45*/
+	{41, 0},	
+	{42, 10},		
+	{43, 30},		
+	{44, 50},//	
 	{45, 60},	
 	{46, 60},	
 	{47, 60},	
@@ -922,7 +931,8 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 
 const uint8_t LCOS_CTL_TABLE[][2] =
 {/*-10~60    +45 to +55 */
-	{45, 20},	
+	{44, 0},	
+	{45, 10},	
 	{46, 20},	
 	{47, 25},	
 	{48, 25},	
@@ -959,6 +969,7 @@ void Fan_Auto_Control(void)
 	uint16_t ld_adc = 0, lcos_adc = 0;
 	uint16_t adc_val[3];
 	uint16_t ld_temp, lcos_temp;
+	uint8_t fan12pwm, fan34pwm, fan5pwm;
 	
 	ld_adc = adc_GetAdcVal(adc_val);
 	lcos_adc = adc_val[2];
@@ -971,9 +982,19 @@ void Fan_Auto_Control(void)
 	{
 		if(Flag_Projector_On == 1)
 		{
-			SetFan12Speed(get_ld_fan12pwm(ld_temp));
-			SetFan34Speed(get_ld_fan34pwm(ld_temp));		
-			SetFan5Speed(get_lcos_fanpwm(lcos_temp));
+			fan12pwm = get_ld_fan12pwm(ld_temp);
+			fan34pwm = get_ld_fan34pwm(ld_temp);
+			fan5pwm = get_lcos_fanpwm(lcos_temp);
+			
+			if(g_UserDisplayOff && (fan5pwm == 0))
+			{//Low LCOS temperature
+				fan12pwm = 0;
+				fan34pwm = 0;
+			}
+			
+			SetFan12Speed(fan12pwm);
+			SetFan34Speed(fan34pwm);		
+			SetFan5Speed(fan5pwm);
 		}
 		
 		if(ld_temp > 55 || lcos_temp > 60)

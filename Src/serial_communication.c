@@ -68,6 +68,7 @@ char OK_7[10] = {13,13,10,32,79,75,32,54,13,10};
 char flag_0 = 0;
 
 extern volatile _Bool g_FanMode;
+extern volatile _Bool g_UserDisplayOff;
 extern volatile _Bool Flag_MatMode;
 extern uint16_t g_RGBCurrent[3];
 volatile _Bool Flag_PrintPort = 0;
@@ -1019,10 +1020,15 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 		case CMD_SET_DISPLAY:
 		{
 			if(pRx[PACKAGE_DATA_BASE] == 0)
+			{
 				display_on(0);
+				g_UserDisplayOff = 1;
+			}
 			else 
+			{
 				display_on(1);
-			
+				g_UserDisplayOff = 0;	
+			}
 			Uart_Send_Response(head->command, NULL, 0);
 			break;			
 		}			
