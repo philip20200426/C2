@@ -115,6 +115,7 @@ extern void LcosSetIntBCHS(void);
 extern void LcosSetGain(void);
 extern void LcosSetFlip(void);
 extern void LcosInitWec(void);
+extern void LcosInitCsco(void);
 extern void GetParameter(void);
 extern void GetColorTempParameter(void);
 extern void ReceiveUart1Data(void);
@@ -257,7 +258,8 @@ int main(void)
 	LcosSetBchs();
 	LcosSetCe1d();
 	LcosSetCebc();
-
+	
+	LcosInitCsco();
 	LcosInitWec();
 #ifdef USE_LT9211_LVDS2MIPI
 	LT9211_Init();

@@ -71,8 +71,9 @@ uint8_t LT9211_ChipID(void)
 		v2 = HDMI_ReadI2C_Byte(0x01);
 		v3 = HDMI_ReadI2C_Byte(0x02);
     printf("LT9211 Chip ID:0x%x,0x%x,0x%x \r\n",v1,v2,v3);
-		if(v1 == 0x18 && v2 == 0x01 && v3 == 0xe3) return 1;
-		else return 0;
+		//if(v1 == 0x18 && v2 == 0x01 && v3 == 0xe3) return 1; //version can be changed.
+		//else return 0;
+		return 1;
 }
 
 /** video chk soft rst **/
