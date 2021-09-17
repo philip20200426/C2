@@ -98,12 +98,13 @@ volatile _Bool Flag_Sxrd241_Alarm = 0;
 volatile _Bool Flag_Projector_On = 1;
 volatile _Bool Flag_Lvds_Clk_Stb = 1;
 volatile _Bool Flag_LT9211_Int = 0;
+volatile _Bool g_FanNOFlag = 1;
 volatile _Bool g_FanMode = 0;
 volatile _Bool g_UserDisplayOff = 0;
 volatile _Bool Flag_MatMode = 0;
 volatile _Bool FlagIwdg = 1;
 uint16_t g_overtemp_cnt = 0;
-uint32_t g_fan_value;
+
 
 void Fan_Auto_Control(void);
 void SysTaskDispatch(void);
@@ -812,8 +813,8 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 	return (1839 - vol)/11;
 }
 /*-------------------------------------------------------------------------------------------*/	
-#if 1
-const uint8_t LD_CTL_TABLE12[][2] =
+#ifdef CONFIG_FAN_OLD
+const uint8_t LD_CTL_TABLE12_OLD[][2] =
 {/* 0~55   45*/	
 	{41, 0},	
 	{42, 10},		
@@ -832,7 +833,7 @@ const uint8_t LD_CTL_TABLE12[][2] =
 	{55, 100}
 };
 
-const uint8_t LD_CTL_TABLE34[][2] =
+const uint8_t LD_CTL_TABLE34_OLD[][2] =
 {/* 0~55   45*/
 	{41, 0},	
 	{42, 10},		
@@ -850,15 +851,71 @@ const uint8_t LD_CTL_TABLE34[][2] =
 	{54, 95},
 	{55, 100}
 };
-#else
+
+uint8_t get_ld_fan12pwm_old(uint8_t temp)
+{
+	uint8_t i;
+	static uint8_t s_pwm = 0, s_temp = 0;
+	
+	if(temp < LD_CTL_TABLE12_OLD[0][0]) return LD_CTL_TABLE12_OLD[0][1];
+	
+	if(temp == s_temp - 1 || temp == s_temp - 2) 
+	{
+		return s_pwm;
+	}
+	
+	for (i = 0; i < sizeof(LD_CTL_TABLE12_OLD)/sizeof(uint8_t)/2; i++)
+	{		
+		if(LD_CTL_TABLE12_OLD[i][0] == temp ) 
+		{
+			s_temp = temp;
+			s_pwm = LD_CTL_TABLE12_OLD[i][1];
+			return LD_CTL_TABLE12_OLD[i][1];
+		}
+	}
+	
+	return LD_CTL_TABLE12_OLD[i-1][1];
+}
+
+uint8_t get_ld_fan34pwm_old(uint8_t temp)
+{
+	uint8_t i;
+	static uint8_t s_pwm = 0, s_temp = 0;
+	
+	if(temp < LD_CTL_TABLE34_OLD[0][0]) return LD_CTL_TABLE34_OLD[0][1];
+	
+	if(temp == s_temp - 1 || temp == s_temp - 2)
+	{
+		return s_pwm;
+	}	
+	
+	for (i = 0; i < sizeof(LD_CTL_TABLE34_OLD)/sizeof(uint8_t)/2; i++)
+	{		
+		if(LD_CTL_TABLE34_OLD[i][0] == temp )
+		{
+			s_temp = temp;
+			s_pwm = LD_CTL_TABLE34_OLD[i][1];
+			return LD_CTL_TABLE34_OLD[i][1];
+		}
+	}
+	
+	return LD_CTL_TABLE34_OLD[i-1][1];
+}
+#endif
+
+//new fan parameter
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
+	{41, 0},
+	{42, 0},
+	{43, 10},		
+	{44, 20},//		
 	{45, 25},	
 	{46, 25},	
 	{47, 25},	
 	{48, 25},	
 	{49, 25},	
-	{50, 30},	
+	{50, 25},	
 	{51, 35},	
 	{52, 35},	
 	{53, 50},	
@@ -868,19 +925,23 @@ const uint8_t LD_CTL_TABLE12[][2] =
 
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
+	{41, 0},
+	{42, 10},		
+	{43, 20},		
+	{44, 30},//	
 	{45, 40},	
 	{46, 40},	
 	{47, 40},	
 	{48, 40},	
 	{49, 40},	
-	{50, 45},	
+	{50, 40},	
 	{51, 50},	
 	{52, 50},	
 	{53, 65},	
 	{54, 85},
 	{55, 100}
 };
-#endif
+
 uint8_t get_ld_fan12pwm(uint8_t temp)
 {
 	uint8_t i;
@@ -987,6 +1048,13 @@ void Fan_Auto_Control(void)
 			fan12pwm = get_ld_fan12pwm(ld_temp);
 			fan34pwm = get_ld_fan34pwm(ld_temp);
 			fan5pwm = get_lcos_fanpwm(lcos_temp);
+#ifdef CONFIG_FAN_OLD			
+			if(!g_FanNOFlag)
+			{
+				fan12pwm = get_ld_fan12pwm_old(ld_temp);
+				fan34pwm = get_ld_fan34pwm_old(ld_temp);			
+			}
+#endif
 			
 			if(g_UserDisplayOff && (fan5pwm == 0))
 			{//Low LCOS temperature

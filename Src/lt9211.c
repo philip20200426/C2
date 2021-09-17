@@ -61,6 +61,9 @@ uint8_t HDMI_ReadI2C_Byte(uint8_t RegAddr)
 	
 	return data;
 }
+#ifdef CONFIG_FAN_OLD	
+extern volatile _Bool g_FanNOFlag;
+#endif
 
 uint8_t LT9211_ChipID(void)
 {
@@ -71,9 +74,19 @@ uint8_t LT9211_ChipID(void)
 		v2 = HDMI_ReadI2C_Byte(0x01);
 		v3 = HDMI_ReadI2C_Byte(0x02);
     printf("LT9211 Chip ID:0x%x,0x%x,0x%x \r\n",v1,v2,v3);
-		//if(v1 == 0x18 && v2 == 0x01 && v3 == 0xe3) return 1; //version can be changed.
-		//else return 0;
+#ifdef CONFIG_FAN_OLD	
+		if(v1 == 0x18 && v2 == 0x01 && v3 == 0xe3)//version can be changed.
+		{
+			g_FanNOFlag = 0;
+		}
+		else
+		{
+			g_FanNOFlag = 1;
+		}
+#endif
+	
 		return 1;
+	
 }
 
 /** video chk soft rst **/
