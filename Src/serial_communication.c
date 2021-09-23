@@ -57,7 +57,7 @@ volatile _Bool FlagSonyTool = 0;
 /* sony tools  ---------------------------------------------------------*/
 struct asu_date asu_rec_data;
 int  data_len = 0;
-char receive_buffer[40];
+char receive_buffer[UART_BUFFER_MAX_SIZE];
 char R_0[15] = {114,32,48,13,13,10,32,79,75,32,50,48,66,13,10};
 char R_1[13] = {114,32,49,13,13,10,32,79,75,32,49,13,10};
 char R_2[15] = {82,32,50,13,13,10,32,79,75,32,50,52,49,13,10};
@@ -2111,6 +2111,10 @@ void Variables_Init(void)
 {
 	memset(&asu_rec_data,0x00,sizeof(struct asu_date));
 	StepperVar_Init();
+	if(g_projector_para.iwdg_flag == 0xff)
+	{
+		g_projector_para.iwdg_flag = 1; //open iwatchdog
+	}
 }
 
 uint8_t getIwdgFlag(void)

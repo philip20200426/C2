@@ -249,7 +249,6 @@ int main(void)
   LcosInitSequence();
   LcosSetPatternSize();
   LcosSetIntPattern();
-	//LcosSetRRGGBBGGMode();
 	LcosSetIntBCHS();
 
 	LcosSetColorTempBlock();
@@ -907,9 +906,9 @@ uint8_t get_ld_fan34pwm_old(uint8_t temp)
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
 	{41, 0},
-	{42, 0},
-	{43, 10},		
-	{44, 20},//		
+	{42, 25},
+	{43, 25},		
+	{44, 25},//		
 	{45, 25},	
 	{46, 25},	
 	{47, 25},	
@@ -926,9 +925,9 @@ const uint8_t LD_CTL_TABLE12[][2] =
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
 	{41, 0},
-	{42, 10},		
-	{43, 20},		
-	{44, 30},//	
+	{42, 40},		
+	{43, 40},		
+	{44, 40},//	
 	{45, 40},	
 	{46, 40},	
 	{47, 40},	
