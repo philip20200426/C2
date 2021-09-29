@@ -2111,9 +2111,9 @@ void Variables_Init(void)
 {
 	memset(&asu_rec_data,0x00,sizeof(struct asu_date));
 	StepperVar_Init();
-	if(g_projector_para.iwdg_flag == 0xff)
+	if(g_projector_para.iwdg_flag == 0xff || g_projector_para.iwdg_flag == 0x1)
 	{
-		g_projector_para.iwdg_flag = 1; //open iwatchdog
+		g_projector_para.iwdg_flag = 0; //close iwatchdog[0 1 0xff] open [2~0xfe]
 	}
 }
 

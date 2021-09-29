@@ -1025,7 +1025,7 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 
 	return LCOS_CTL_TABLE[i-1][1];
 }
-#define TEMP_OVER_CNT   5   //2min
+#define TEMP_OVER_CNT   8   //3min
 void Fan_Auto_Control(void)
 {
 	uint16_t ld_adc = 0, lcos_adc = 0;
