@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	17  //vbyone 4
+#define VERSION2 	18  //vbyone 4
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
@@ -63,7 +63,7 @@
 
 #define PACKAGE_DATA_BASE 			6
 
-//#define CONFIG_CEACC
+#define CONFIG_CEACC
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
