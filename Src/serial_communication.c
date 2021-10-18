@@ -54,6 +54,11 @@ volatile uint8_t UartReceiveLength = 0;
 volatile uint8_t UartTempLength = 0;
 volatile uint8_t UartCommandLength = 0;
 volatile _Bool FlagSonyTool = 0;
+
+#define MULT_REG_SIZE  10300
+static uint8_t MultRegBuffer[MULT_REG_SIZE] = {0};
+static uint16_t mrb_count=0;
+static _Bool mrb_flag = 0;
 /* sony tools  ---------------------------------------------------------*/
 struct asu_date asu_rec_data;
 int  data_len = 0;
@@ -782,7 +787,18 @@ void Uart_Save_Parameter(uint8_t* pData)
 				SetParameter();
 				break;
 			}
+#ifdef CONFIG_CEACC
+			case PARA_CEACC:
+			{
+				g_pColorTemp->ce_acc.valid = PARAMETER_VALID;
+				for(i = 0; i < CE_ACC_REG_NUM; i++) {
+					I2cReadCxd3554Ex(CXD3554_I2C_ADDRESS, CXD3554_CEACC_BASEADDRESS + i, &g_pColorTemp->ce_acc.val[i]);
+				}
 
+				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
+				break;
+			}
+#endif
 			case PARA_CURRENT:
 			{
 				g_pColorTemp->current.valid = PARAMETER_VALID;
@@ -935,6 +951,14 @@ void Uart_Clear_Parameter(uint8_t* pData)
 				break;
 			}
 
+#ifdef CONFIG_CEACC
+			case PARA_CEACC:
+			{
+				g_pColorTemp->ce_acc.valid = PARAMETER_INVALID;
+				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
+				break;
+			}
+#endif
 		default:
 			break;
 		}
@@ -990,7 +1014,44 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			reg_count = pRx[PACKAGE_DATA_BASE+2];
 			Uart_Cmd_ReadReg(head->command, reg, buf, reg_count);
 			break;
-		}	
+		}
+
+		case CMD_WRITE_MULT_REG_DATA:
+		{
+			uint16_t mrb_offset =(pRx[PACKAGE_DATA_BASE + 1] << 8) + pRx[PACKAGE_DATA_BASE];
+			uint8_t mrb_len = pRx[PACKAGE_DATA_BASE + 2];
+
+			//printf("CMD_WRITE_MULT_REG_DATA: mrb_offset:0x%x  mrb_len:%d \r\n",mrb_offset, mrb_len);
+			memcpy(&MultRegBuffer[mrb_offset], &pRx[PACKAGE_DATA_BASE + 3], mrb_len);
+			mrb_count += mrb_len;
+			Uart_Send_Response(head->command, NULL, 0);
+
+			mrb_flag = 1;
+			break;
+		}
+		case CMD_WRITE_MULT_REG:
+		{
+			mrb_flag = 1;
+			if(mrb_flag)
+			{
+				reg = (pRx[PACKAGE_DATA_BASE + 1] << 8) + pRx[PACKAGE_DATA_BASE];
+				reg_count = (pRx[PACKAGE_DATA_BASE + 3] << 8) + pRx[PACKAGE_DATA_BASE + 2];
+
+				//printf("WRITE_MULT_REG begin: addr:0x%x size:%d %d \r\n",reg, reg_count, mrb_count);
+				uint8_t ret = I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, reg, MultRegBuffer, reg_count);
+				//printf("WRITE_MULT_REG end. \r\n");
+
+				if(ret != HAL_OK)
+					Uart_Send_Response(CMD_ERROR, NULL, 0);
+				else
+					Uart_Send_Response(head->command, NULL, 0);
+
+				mrb_flag = 0;
+				mrb_count = 0;
+				//memset(MultRegBuffer, 0, MULT_REG_SIZE);
+			}
+			break;
+		}
 		case CMD_SET_LT9211_TEST:
 		{
 #ifdef USE_LT9211_LVDS2MIPI
@@ -1661,6 +1722,15 @@ void LcosSetCebc(void)
 	}
 }
 
+#ifdef CONFIG_CEACC
+void LcosSetCeacc(void)
+{
+	if(g_pColorTemp->ce_acc.valid == PARAMETER_VALID)
+	{
+		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_CEACC_BASEADDRESS, g_pColorTemp->ce_acc.val, CE_ACC_REG_NUM);
+	}
+}
+#endif
 /* tim ------------------------------------------------------------------*/
 uint8_t FanSpeedConvert(uint32_t speed)
 {

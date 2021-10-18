@@ -29,9 +29,8 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	16  //vbyone 4
+#define VERSION2 	17  //vbyone 4
 
-//#define CONFIG_FAN_OLD
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
 #define CMD_ERROR								0
@@ -40,6 +39,8 @@
 #define CMD_READ_CXD3554_REG		12
 #define CMD_WRITE_SXMB241_REG		13
 #define CMD_READ_SXMB241_REG		14
+#define CMD_WRITE_MULT_REG_DATA 15
+#define CMD_WRITE_MULT_REG			16
 
 #define CMD_GET_CURRENTS				20
 #define CMD_GET_FANS						21
@@ -61,6 +62,8 @@
 #define CMD_ENTER_PRINT_UART0		43
 
 #define PACKAGE_DATA_BASE 			6
+
+//#define CONFIG_CEACC
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
@@ -116,6 +119,7 @@ typedef enum
 	PARA_BCHS,
 	PARA_CE1D,
 	PARA_CEBC,
+	PARA_CEACC,
 	PARA_MAX	
 }PARA_Type;
 
@@ -183,7 +187,15 @@ struct Parameter_Ce_bc
     uint8_t  val[CE_BC_REG_NUM];
 };
 
-struct Projector_parameter{
+#ifdef CONFIG_CEACC
+struct Parameter_Ce_acc
+{
+    uint8_t  valid;
+    uint8_t  val[CE_ACC_REG_NUM];
+};
+#endif
+
+struct Projector_parameter{//max 600
 		struct Parameter_Gain gain;
 		struct Parameter_Flip flip;
 		struct Parameter_Kst kst;
@@ -192,7 +204,7 @@ struct Projector_parameter{
 		struct Parameter_Ce_1d ce_1d;
 		struct Parameter_Ce_bc ce_bc;
 		uint8_t iwdg_flag;
-		uint8_t  Reserved[8];
+		uint8_t  Reserved[8]; //last 32
 };
 
 
@@ -234,6 +246,9 @@ struct Projector_Color_Temp{
 		struct Parameter_Led reg_led;
 		struct Parameter_Frc reg_frc;
 		struct Parameter_Misc reg_misc;
+#ifdef CONFIG_CEACC
+		struct Parameter_Ce_acc ce_acc;
+#endif
 		uint8_t  Reserved[8];
 };
 
