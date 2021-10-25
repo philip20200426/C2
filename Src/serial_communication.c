@@ -357,6 +357,7 @@ void GetColorTempParameter(void)
 	printf("241:0x%x \r\n",g_color_temp.reg_241.valid);
 	printf("led:0x%x \r\n",g_color_temp.reg_led.valid);
 	printf("frc:0x%x \r\n",g_color_temp.reg_frc.valid);
+	printf("ceacc:0x%x \r\n",g_color_temp.ce_acc.valid);
 #endif
 	return;
 }
@@ -443,6 +444,55 @@ _Bool SetUserParameterEx(void *buf,  uint32_t size, uint32_t user_start_addr, ui
 	}	
 	
 	return 1;
+}
+
+_Bool User_FLASHEx_Erase(uint32_t user_start_addr, uint32_t user_end_addr)
+{
+	uint32_t FirstPage = 0, NbOfPages = 0;
+	uint32_t PageError = 0;
+	FLASH_EraseInitTypeDef EraseInitStruct;
+
+  /* Unlock the Flash to enable the flash control register access *************/
+  HAL_FLASH_Unlock();
+
+  /* Erase the user Flash area
+    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+  /* Get the 1st page to erase */
+  FirstPage = GetPage(user_start_addr);
+
+  /* Get the number of pages to erase from 1st page */
+  NbOfPages = GetPage(user_end_addr) - FirstPage + 1;
+
+  /* Fill EraseInit structure*/
+  EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+  EraseInitStruct.Page        = FirstPage;
+  EraseInitStruct.NbPages     = NbOfPages;
+
+	printf("User_FLASHEx_Erase FirstPage[%d] NbOfPages[%d]\r\n",FirstPage, NbOfPages);
+  /* Note: If an erase operation in Flash memory also concerns data in the data or instruction cache,
+     you have to make sure that these data are rewritten before they are accessed during code
+     execution. If this cannot be done safely, it is recommended to flush the caches by setting the
+     DCRST and ICRST bits in the FLASH_CR register. */
+  if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+  {
+    /*
+      Error occurred while page erase.
+      User can add here some code to deal with this error.
+      PageError will contain the faulty page and then to know the code error on this page,
+      user can call function 'HAL_FLASH_GetError()'
+    */
+		printf("User_FLASHEx_Erase:HAL_FLASHEx_Erase PageError=%d errcode[%d]\r\n",PageError, HAL_FLASH_GetError());
+		HAL_FLASH_Lock();
+		return 1;
+  }
+
+  /* Lock the Flash to disable the flash control register access (recommended
+     to protect the FLASH memory against possible unwanted operation) *********/
+  HAL_FLASH_Lock();
+
+	printf("User_FLASHEx_Erase OK!\r\n");
+	return 0;
 }
 
 #if 0
@@ -603,7 +653,8 @@ unsigned short checksum(unsigned char* pdata, unsigned short size)
 _Bool Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
 {
 		uint8_t ret;
-	
+
+		//printf("Uart_Cmd_WriteReg:0x%x  count:%d \r\n",reg, count);
 		if(count == 1)
 		{
 			if(cmd == CMD_WRITE_SXMB241_REG)			
@@ -1209,7 +1260,25 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			Uart_Send_Response(head->command, NULL, 0);
 			break;				
 		}	
-		
+
+		case CMD_ERASE_FLASH:
+		{
+			if(pRx[PACKAGE_DATA_BASE] > 63 || pRx[PACKAGE_DATA_BASE+1] > 63 || pRx[PACKAGE_DATA_BASE] < 45 || pRx[PACKAGE_DATA_BASE+1] < 45)
+			{
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+				break;
+			}
+
+			uint32_t start_addr = (FLASH_BASE + (pRx[PACKAGE_DATA_BASE] * FLASH_PAGE_SIZE));
+			uint32_t end_addr   = (FLASH_BASE + (pRx[PACKAGE_DATA_BASE + 1] * FLASH_PAGE_SIZE));
+			if(!User_FLASHEx_Erase(start_addr, end_addr))
+				Uart_Send_Response(head->command, NULL, 0);
+			else
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+
+			break;
+		}
+
 		default:
 			break;
 	}	

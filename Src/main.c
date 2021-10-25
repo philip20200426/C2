@@ -150,6 +150,13 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void FanInit(void)
+{
+	SetFan12Speed(35);
+	SetFan34Speed(35);
+	SetFan5Speed(35);
+}
+
 void SetRGB_Enable(GPIO_PinState value)
 {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, value); //LD_EN enable LD DC-DC EN
@@ -160,6 +167,7 @@ void 	display_on(uint16_t on)
 	if(on==1)
 	{
 		SetRGB_Enable(GPIO_PIN_SET);
+		FanInit();
 	}
 	else
 	{
@@ -233,16 +241,8 @@ int main(void)
 	GetColorTempParameter();
 
 	Variables_Init();
-  GpioConfig();	
-#if 1	
-	SetFan12Speed(25);
-	SetFan34Speed(40);
-	SetFan5Speed(10);	
-#else
-	SetFan12Speed(FAN_SPEED_FULL);
-	SetFan34Speed(FAN_SPEED_FULL);
-  SetFan5Speed(FAN_SPEED_FULL);	
-#endif
+  GpioConfig();
+	FanInit();
 	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	
@@ -818,40 +818,40 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 //new fan parameter
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
-	{41, 0},
-	{42, 25},
-	{43, 25},		
-	{44, 25},//		
-	{45, 25},	
-	{46, 25},	
-	{47, 25},	
-	{48, 25},	
-	{49, 25},	
-	{50, 25},	
-	{51, 35},	
-	{52, 35},	
-	{53, 50},	
-	{54, 70},
-	{55, 100}
+	{41, 21},
+	{42, 21},
+	{43, 21},
+	{44, 21},//8
+	{45, 21},
+	{46, 21},
+	{47, 21},
+	{48, 21},
+	{49, 21},
+	{50, 21},
+	{51, 31},//12
+	{52, 42},//16
+	{53, 51},//20
+	{54, 62},//24
+	{55, 72} //28
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
-	{41, 0},
-	{42, 40},		
-	{43, 40},		
-	{44, 40},//	
-	{45, 40},	
-	{46, 40},	
-	{47, 40},	
-	{48, 40},	
-	{49, 40},	
-	{50, 40},	
-	{51, 50},	
-	{52, 50},	
-	{53, 65},	
-	{54, 85},
-	{55, 100}
+	{41, 31},
+	{42, 31},
+	{43, 31},
+	{44, 31}, //12
+	{45, 31},
+	{46, 31},
+	{47, 31},
+	{48, 31},
+	{49, 31},
+	{50, 31},
+	{51, 42}, //16
+	{52, 51},	//20
+	{53, 62}, //24
+	{54, 72}, //28
+	{55, 85}  //33
 };
 
 uint8_t get_ld_fan12pwm(uint8_t temp)
@@ -872,11 +872,11 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 		{
 			s_temp = temp;
 			s_pwm = LD_CTL_TABLE12[i][1];
-			return LD_CTL_TABLE12[i][1];
+			return s_pwm;
 		}
 	}
 	
-	return LD_CTL_TABLE12[i-1][1];
+	return 100;
 }
 
 uint8_t get_ld_fan34pwm(uint8_t temp)
@@ -897,31 +897,31 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 		{
 			s_temp = temp;
 			s_pwm = LD_CTL_TABLE34[i][1];
-			return LD_CTL_TABLE34[i][1];
+			return s_pwm;
 		}
 	}
 	
-	return LD_CTL_TABLE34[i-1][1];
+	return 100;
 }
 
 const uint8_t LCOS_CTL_TABLE[][2] =
 {/*-10~60    +45 to +55 */
 	{44, 0},
-	{45, 20},
-	{46, 20},
+	{45, 30},
+	{46, 30},
 	{47, 30},
 	{48, 30},
-	{49, 30},
-	{50, 30},
-	{51, 30},
-	{52, 30},
-	{53, 30},
+	{49, 40},
+	{50, 40},
+	{51, 40},
+	{52, 40},
+	{53, 50},
 	{54, 50},
-	{55, 60},	
-	{56, 70},	
-	{57, 80},	
-	{58, 90},	
-	{59, 100},	
+	{55, 50},
+	{56, 60},
+	{57, 70},
+	{58, 80},
+	{59, 90},
 	{60, 100}
 };
 
@@ -936,7 +936,7 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 		if(LCOS_CTL_TABLE[i][0] == temp ) return LCOS_CTL_TABLE[i][1];
 	}
 
-	return LCOS_CTL_TABLE[i-1][1];
+	return 100;
 }
 #define TEMP_OVER_CNT   8   //3min
 void Fan_Auto_Control(void)
