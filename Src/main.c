@@ -149,12 +149,11 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 void FanInit(void)
 {
-	SetFan12Speed(35);
-	SetFan34Speed(35);
-	SetFan5Speed(35);
+	SetFan12Speed(30);
+	SetFan34Speed(30);
+	SetFan5Speed(30);
 }
 
 void SetRGB_Enable(GPIO_PinState value)
@@ -818,40 +817,40 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 //new fan parameter
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
-	{41, 25},//8
-	{42, 25},
-	{43, 25},
-	{44, 25},
-	{45, 25},
-	{46, 25},
-	{47, 25},
-	{48, 25},//9
-	{49, 25},
-	{50, 25},
-	{51, 25},//31-> 12
-	{52, 42},//16
-	{53, 51},//20
+	{41, 21},//8
+	{42, 21},
+	{43, 21},		
+	{44, 21},//		
+	{45, 21},	
+	{46, 21},	
+	{47, 21},	
+	{48, 21},	
+	{49, 25},//9	
+	{50, 25},	
+	{51, 25},	
+	{52, 42},//16	
+	{53, 51},//20	
 	{54, 62},//24
 	{55, 72} //28
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
-	{41, 35},//12
-	{42, 35},
-	{43, 35},
-	{44, 35},
-	{45, 35},
-	{46, 35},
-	{47, 35},
-	{48, 35},//13
-	{49, 35},
-	{50, 35},
-	{51, 35}, //42->16
-	{52, 51},	//20
-	{53, 62}, //24
-	{54, 72}, //28
-	{55, 85}  //33
+	{41, 31},//12
+	{42, 31},		
+	{43, 31},		
+	{44, 31},//	
+	{45, 31},	
+	{46, 31},	
+	{47, 31},	
+	{48, 31},	
+	{49, 35},//13	
+	{50, 35},	
+	{51, 35},	
+	{52, 51},//20	
+	{53, 62},//24	
+	{54, 72},//28
+	{55, 85} //33
 };
 
 uint8_t get_ld_fan12pwm(uint8_t temp)
@@ -861,11 +860,17 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
 	
-	if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
-	{
-		return s_pwm;
+	if(s_temp > 52){
+		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
+		{
+			return s_pwm;
+		}
+	} else {
+		if(temp == s_temp - 1 || temp == s_temp - 2)
+		{
+			return s_pwm;
+		}
 	}
-	
 	for (i = 0; i < sizeof(LD_CTL_TABLE12)/sizeof(uint8_t)/2; i++)
 	{		
 		if(LD_CTL_TABLE12[i][0] == temp ) 
@@ -886,10 +891,17 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
 	
-	if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
-	{
-		return s_pwm;
-	}	
+	if(s_temp > 52){
+		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
+		{
+			return s_pwm;
+		}
+	} else {
+		if(temp == s_temp - 1 || temp == s_temp - 2)
+		{
+			return s_pwm;
+		}
+	}
 	
 	for (i = 0; i < sizeof(LD_CTL_TABLE34)/sizeof(uint8_t)/2; i++)
 	{		
@@ -917,11 +929,11 @@ const uint8_t LCOS_CTL_TABLE[][2] =
 	{52, 40},
 	{53, 50},
 	{54, 50},
-	{55, 50},
-	{56, 60},
-	{57, 70},
-	{58, 80},
-	{59, 90},
+	{55, 50},	
+	{56, 60},	
+	{57, 70},	
+	{58, 80},	
+	{59, 90},	
 	{60, 100}
 };
 

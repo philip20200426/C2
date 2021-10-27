@@ -653,8 +653,7 @@ unsigned short checksum(unsigned char* pdata, unsigned short size)
 _Bool Uart_Cmd_WriteReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t count)
 {
 		uint8_t ret;
-
-		//printf("Uart_Cmd_WriteReg:0x%x  count:%d \r\n",reg, count);
+	
 		if(count == 1)
 		{
 			if(cmd == CMD_WRITE_SXMB241_REG)			
@@ -1278,7 +1277,7 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 
 			break;
 		}
-
+		
 		default:
 			break;
 	}	

@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	20  //vbyone 4
+#define VERSION2 	21  //vbyone 4
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
@@ -60,7 +60,7 @@
 #define CMD_CLR_PARAMRTER				41
 #define CMD_ENTER_MAT						42
 #define CMD_ENTER_PRINT_UART0		43
-#define CMD_ERASE_FLASH         44
+#define CMD_ERASE_FLASH					44
 
 #define PACKAGE_DATA_BASE 			6
 
