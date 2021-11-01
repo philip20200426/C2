@@ -151,8 +151,8 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 void FanInit(void)
 {
-	SetFan12Speed(30);
-	SetFan34Speed(30);
+	SetFan12Speed(25);
+	SetFan34Speed(35);
 	SetFan5Speed(30);
 }
 
@@ -817,40 +817,40 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 //new fan parameter
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
-	{41, 21},//8
-	{42, 21},
-	{43, 21},		
-	{44, 21},//		
-	{45, 21},	
-	{46, 21},	
-	{47, 21},	
-	{48, 21},	
+	{41, 25},//
+	{42, 25},
+	{43, 25},		
+	{44, 25},//		
+	{45, 25},	
+	{46, 25},	
+	{47, 25},	
+	{48, 25},	
 	{49, 25},//9	
 	{50, 25},	
 	{51, 25},	
-	{52, 42},//16	
-	{53, 51},//20	
-	{54, 62},//24
-	{55, 72} //28
+	{52, 25},//	
+	{53, 30},//11	
+	{54, 35},//13
+	{55, 70} //27
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
-	{41, 31},//12
-	{42, 31},		
-	{43, 31},		
-	{44, 31},//	
-	{45, 31},	
-	{46, 31},	
-	{47, 31},	
-	{48, 31},	
+	{41, 35},//
+	{42, 35},		
+	{43, 35},		
+	{44, 35},//	
+	{45, 35},	
+	{46, 35},	
+	{47, 35},	
+	{48, 35},	
 	{49, 35},//13	
 	{50, 35},	
 	{51, 35},	
-	{52, 51},//20	
-	{53, 62},//24	
-	{54, 72},//28
-	{55, 85} //33
+	{52, 35},//	
+	{53, 40},//15	
+	{54, 45},//17
+	{55, 80} //31
 };
 
 uint8_t get_ld_fan12pwm(uint8_t temp)
@@ -860,7 +860,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
 	
-	if(s_temp > 52){
+	if(s_temp > 54){
 		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
 		{
 			return s_pwm;
@@ -871,6 +871,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 			return s_pwm;
 		}
 	}
+
 	for (i = 0; i < sizeof(LD_CTL_TABLE12)/sizeof(uint8_t)/2; i++)
 	{		
 		if(LD_CTL_TABLE12[i][0] == temp ) 
@@ -881,6 +882,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 		}
 	}
 	
+	s_temp = 55;
 	return 100;
 }
 
@@ -890,8 +892,8 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	static uint8_t s_pwm = 0, s_temp = 0;
 	
 	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
-	
-	if(s_temp > 52){
+
+	if(s_temp > 54){
 		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
 		{
 			return s_pwm;
@@ -913,6 +915,7 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 		}
 	}
 	
+	s_temp = 55;
 	return 100;
 }
 

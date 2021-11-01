@@ -97,13 +97,13 @@ uint8_t SetPwm(uint8_t DevAddr, uint16_t data)
 
 	ret = TPL1401_WriteI2C_Byte(DevAddr, 0xD1, 0x01E0);//0x11E5
 	if(ret != HAL_OK) return ret;
-	HAL_Delay(1);
+	//HAL_Delay(1);
 	ret = TPL1401_WriteI2C_Byte(DevAddr, 0x21, data);
 	if(ret != HAL_OK) return ret;
-	HAL_Delay(1);
+	//HAL_Delay(1);
 	ret = TPL1401_WriteI2C_Byte(DevAddr, 0xD3, 0x0010);	
 	if(ret != HAL_OK) return ret;
-	HAL_Delay(1);
+	//HAL_Delay(1);
 	
 	return ret;
 }
@@ -132,7 +132,7 @@ uint8_t SetPwmPre(uint8_t DevAddr, uint16_t data)
 		else if(TPL1401_BLED_I2C_ADDR == DevAddr)
 			SetPwm(TPL1401_BLED_I2C_ADDR, (MAX_BLUE_VAL - reg_val) << 4);
 		
-		HAL_Delay(10);
+		HAL_Delay(15);
 	}
 	
 	return data;
