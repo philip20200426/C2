@@ -116,7 +116,9 @@ extern void LcosSetIntBCHS(void);
 extern void LcosSetGain(void);
 extern void LcosSetFlip(void);
 extern void LcosInitWec(void);
-extern void LcosInitCsco(void);
+extern void LcosInitCSCO(void);
+extern void LcosInitLED(void);
+extern void LcosInitSHP(void);
 extern void GetParameter(void);
 extern void GetColorTempParameter(void);
 extern void ReceiveUart1Data(void);
@@ -131,6 +133,7 @@ extern void LcosSetBchs(void);
 extern void LcosSetCe1d(void);
 extern void LcosSetCebc(void);
 extern void LcosSetCeacc(void);
+extern void LcosInitDIZ(void);
 extern uint8_t getIwdgFlag(void);
 #ifdef USE_LT9211_LVDS2MIPI
 extern void	LT9211_Init(void);
@@ -235,7 +238,7 @@ int main(void)
   //MX_IWDG_Init();
   MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
-
+	/******************************************************************/
   GetParameter();
 	GetColorTempParameter();
 
@@ -244,25 +247,30 @@ int main(void)
 	FanInit();
 	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
-	
+	/******************************************************************/
   SetRGBCurrent();
   LcosInitSequence();
   LcosSetPatternSize();
   LcosSetIntPattern();
 	LcosSetIntBCHS();
-
-	LcosSetColorTempBlock();
 	LcosSetFlip();
 	LcosSetKst();
 	LcosSetWP();
+	/******************************************************************/
+	LcosInitLED();
+	LcosInitCSCO();
+	LcosInitSHP();
+	LcosInitWec();
+	LcosInitDIZ();
+	/******************************************************************/
+	LcosSetColorTempBlock();
 	LcosSetBchs();
 	LcosSetCe1d();
 	LcosSetCebc();
 #ifdef CONFIG_CEACC
 	LcosSetCeacc();
-#endif	
-	LcosInitCsco();
-	LcosInitWec();
+#endif
+	/******************************************************************/
 #ifdef USE_LT9211_LVDS2MIPI
 	LT9211_Init();
 	//LT9211_Pattern_Init();
@@ -270,7 +278,7 @@ int main(void)
 	LT89121_Reset();
 #endif
 	SetRGB_Enable(GPIO_PIN_SET); //LD_EN
-
+	/******************************************************************/
 	SetBootPinMode();
 	ReceiveUart1Data();
 #ifdef CONFIG_IWDG	

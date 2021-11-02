@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "stdio.h"
 
-//#define CONFIG_PCLK_755M
+#define CONFIG_PCLK_755M
 
 #define CXD3554_I2C_ADDRESS 0x74
 #define SXRD241_I2C_ADDRESS 0x92

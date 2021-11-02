@@ -1763,7 +1763,6 @@ void LcosSetColorTempBlock(void)
 	
 	LcosSetSxrd241();
 	
-	//SetRGBCurrent();
 }
 
 void LcosSetBchs(void)
