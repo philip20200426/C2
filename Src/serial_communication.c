@@ -1745,7 +1745,6 @@ void LcosSetWP(void)
 
 void LcosSetColorTempBlock(void)
 {
-	//GetColorTempParameter();
 	if((g_pColorTemp->reg_misc.valid) == PARAMETER_VALID)
 	{
 		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_MISC_BASEADDRESS, g_pColorTemp->reg_misc.val, MISC_REG_NUM);
@@ -1761,6 +1760,7 @@ void LcosSetColorTempBlock(void)
 		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_FRC_BASEADDRESS, g_pColorTemp->reg_frc.val, FRC_REG_NUM);
 	}
 	
+	LcosSetFlip();//Misc overwrite
 	LcosSetSxrd241();
 	
 }
@@ -1799,9 +1799,9 @@ void LcosSetCeacc(void)
 }
 #endif
 /* tim ------------------------------------------------------------------*/
-uint8_t FanSpeedConvert(uint32_t speed)
+uint16_t FanSpeedConvert(uint32_t speed)
 {
-	 return (39*speed)/100;
+	 return (2559*speed)/100;
 }
 uint8_t SetFan12Speed(uint32_t speed)
 {

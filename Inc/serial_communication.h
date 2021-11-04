@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	24  //vbyone 4
+#define VERSION2 	25  //vbyone 4
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
@@ -82,10 +82,11 @@ typedef enum
 
 typedef enum
 {
-  FAN_SPEED_FULL   		= 100,
-  FAN_SPEED_DEFAULT		= 40, //15
-  FAN_SPEED_SLOW   		= 27, //10
-  FAN_PEED_STOP    		= 0
+	FAN_SPEED_FULL   		= 100,
+	FAN_SPEED_DEFAULT_L		= 26,
+	FAN_SPEED_DEFAULT_R		= 39,
+	FAN_SPEED_DEFAULT_O		= 30,
+	FAN_PEED_STOP    		= 0
 
 }FAN_Speed;
 

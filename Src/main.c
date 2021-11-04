@@ -154,9 +154,9 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 void FanInit(void)
 {
-	SetFan12Speed(25);
-	SetFan34Speed(35);
-	SetFan5Speed(30);
+	SetFan12Speed(FAN_SPEED_DEFAULT_L);
+	SetFan34Speed(FAN_SPEED_DEFAULT_R);
+	SetFan5Speed(FAN_SPEED_DEFAULT_O);
 }
 
 void SetRGB_Enable(GPIO_PinState value)
@@ -253,9 +253,6 @@ int main(void)
   LcosSetPatternSize();
   LcosSetIntPattern();
 	LcosSetIntBCHS();
-	LcosSetFlip();
-	LcosSetKst();
-	LcosSetWP();
 	/******************************************************************/
 	LcosInitLED();
 	LcosInitCSCO();
@@ -264,6 +261,8 @@ int main(void)
 	LcosInitDIZ();
 	/******************************************************************/
 	LcosSetColorTempBlock();
+	LcosSetKst();
+	LcosSetWP();
 	LcosSetBchs();
 	LcosSetCe1d();
 	LcosSetCebc();
@@ -825,40 +824,40 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 //new fan parameter
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
-	{41, 25},//
-	{42, 25},
-	{43, 25},		
-	{44, 25},//		
-	{45, 25},	
-	{46, 25},	
-	{47, 25},	
-	{48, 25},	
-	{49, 25},//9	
-	{50, 25},	
-	{51, 25},	
-	{52, 25},//	
-	{53, 30},//11	
-	{54, 35},//13
-	{55, 70} //27
+	{41, FAN_SPEED_DEFAULT_L},
+	{42, FAN_SPEED_DEFAULT_L},
+	{43, FAN_SPEED_DEFAULT_L},
+	{44, FAN_SPEED_DEFAULT_L},
+	{45, FAN_SPEED_DEFAULT_L},
+	{46, FAN_SPEED_DEFAULT_L},
+	{47, FAN_SPEED_DEFAULT_L},
+	{48, FAN_SPEED_DEFAULT_L},
+	{49, FAN_SPEED_DEFAULT_L},
+	{50, FAN_SPEED_DEFAULT_L},
+	{51, FAN_SPEED_DEFAULT_L},
+	{52, FAN_SPEED_DEFAULT_L},
+	{53, 30},
+	{54, 35},
+	{55, 70}
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
-	{41, 35},//
-	{42, 35},		
-	{43, 35},		
-	{44, 35},//	
-	{45, 35},	
-	{46, 35},	
-	{47, 35},	
-	{48, 35},	
-	{49, 35},//13	
-	{50, 35},	
-	{51, 35},	
-	{52, 35},//	
-	{53, 40},//15	
-	{54, 45},//17
-	{55, 80} //31
+	{41, FAN_SPEED_DEFAULT_R},
+	{42, FAN_SPEED_DEFAULT_R},
+	{43, FAN_SPEED_DEFAULT_R},
+	{44, FAN_SPEED_DEFAULT_R},
+	{45, FAN_SPEED_DEFAULT_R},
+	{46, FAN_SPEED_DEFAULT_R},
+	{47, FAN_SPEED_DEFAULT_R},
+	{48, FAN_SPEED_DEFAULT_R},
+	{49, FAN_SPEED_DEFAULT_R},
+	{50, FAN_SPEED_DEFAULT_R},
+	{51, FAN_SPEED_DEFAULT_R},
+	{52, FAN_SPEED_DEFAULT_R},
+	{53, 45},
+	{54, 50},
+	{55, 85}
 };
 
 uint8_t get_ld_fan12pwm(uint8_t temp)
@@ -868,7 +867,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
 	
-	if(s_temp > 54){
+	if(s_temp > 53){
 		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
 		{
 			return s_pwm;
@@ -891,7 +890,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	}
 	
 	s_temp = 55;
-	return 100;
+	return FAN_SPEED_FULL;
 }
 
 uint8_t get_ld_fan34pwm(uint8_t temp)
@@ -901,7 +900,7 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	
 	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
 
-	if(s_temp > 54){
+	if(s_temp > 53){
 		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
 		{
 			return s_pwm;
@@ -924,16 +923,16 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	}
 	
 	s_temp = 55;
-	return 100;
+	return FAN_SPEED_FULL;
 }
 
 const uint8_t LCOS_CTL_TABLE[][2] =
 {/*-10~60    +45 to +55 */
 	{44, 0},
-	{45, 30},
-	{46, 30},
-	{47, 30},
-	{48, 30},
+	{45, FAN_SPEED_DEFAULT_O},
+	{46, FAN_SPEED_DEFAULT_O},
+	{47, FAN_SPEED_DEFAULT_O},
+	{48, FAN_SPEED_DEFAULT_O},
 	{49, 40},
 	{50, 40},
 	{51, 40},
@@ -959,7 +958,7 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 		if(LCOS_CTL_TABLE[i][0] == temp ) return LCOS_CTL_TABLE[i][1];
 	}
 
-	return 100;
+	return FAN_SPEED_FULL;
 }
 #define TEMP_OVER_CNT   8   //3min
 void Fan_Auto_Control(void)
@@ -1013,7 +1012,7 @@ void Fan_Auto_Control(void)
 		else 
 		{
 			g_overtemp_cnt = 0;
-			if(ld_temp < 45 && lcos_temp < 50)
+			if(ld_temp < 45 && lcos_temp < 48)
 			{
 				if(Flag_Projector_On != 1)
 				{
