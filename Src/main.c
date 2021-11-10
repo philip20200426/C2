@@ -254,11 +254,15 @@ int main(void)
   LcosSetIntPattern();
 	LcosSetIntBCHS();
 	/******************************************************************/
+#ifdef CONFIG_GRGBBGRG
 	LcosInitLED();
+#endif
 	LcosInitCSCO();
 	LcosInitSHP();
 	LcosInitWec();
+#ifdef CONFIG_GRGBBGRG
 	LcosInitDIZ();
+#endif
 	/******************************************************************/
 	LcosSetColorTempBlock();
 	LcosSetKst();

@@ -4,7 +4,11 @@
 #include <stdint.h>
 #include "stdio.h"
 
+//#define CONFIG_GRGBBGRG
+
+#ifdef CONFIG_GRGBBGRG
 #define CONFIG_PCLK_755M
+#endif
 
 #define CXD3554_I2C_ADDRESS 0x74
 #define SXRD241_I2C_ADDRESS 0x92

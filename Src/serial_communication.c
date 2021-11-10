@@ -772,7 +772,7 @@ void Uart_Save_Parameter(uint8_t* pData)
 				}
 #if 0
 				printf("set kst:");
-				for(uint8_t i = 1; i < KST_REG_NUM+1; i++)
+				for(uint8_t i = 0; i < KST_REG_NUM; i++)
 				{
 					printf("0x%x ",g_projector_para.kst.val[i]);
 				}	
