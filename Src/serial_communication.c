@@ -1856,7 +1856,7 @@ uint8_t SetFan5Speed(uint32_t speed)
   return 0;
 }
 
-#if 1
+#if 0
 static uint8_t fan1_capCnt, fan2_capCnt, fan3_capCnt, fan4_capCnt, fan5_capCnt, ThreePMotor_capCnt;
 static uint16_t fan1_capBuf[3], fan2_capBuf[3],fan3_capBuf[3], fan4_capBuf[3],  fan5_capBuf[3], ThreePMotor_capBuf[3];
 

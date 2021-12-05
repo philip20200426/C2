@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	0
-#define VERSION2 	28  //vbyone 4
+#define VERSION2 	29  //vbyone 4
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
