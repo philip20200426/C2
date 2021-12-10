@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "stdio.h"
 
-#define CONFIG_GRGBBGRG
+//#define CONFIG_GRGBBGRG
 
 #ifdef CONFIG_GRGBBGRG
 #define CONFIG_PCLK_755M
