@@ -63,7 +63,7 @@ uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr)
 
 #define MAX_RED_VAL   		92 //0x0640
 #define MAX_GREEN_VAL   	92
-#define MAX_BLUE_VAL   		80
+#define MAX_BLUE_VAL   		92
 
 #define MIN_RED_VAL   		10  //0x00a0
 #define MIN_GREEN_VAL   	10
@@ -71,7 +71,7 @@ uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr)
 
 #define DEFAULT_R_VAL   	80
 #define DEFAULT_G_VAL   	80
-#define DEFAULT_B_VAL   	80
+#define DEFAULT_B_VAL   	65
 
 uint8_t GetRGBCurrent(uint8_t rgb)
 {
