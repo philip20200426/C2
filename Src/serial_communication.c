@@ -30,6 +30,9 @@ extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
 #endif
 extern void display_on(uint16_t on);
+extern uint8_t SetRGBCurrent_Mcu(uint8_t r, uint8_t g, uint8_t b);
+extern uint8_t GetRGBCurrent_Mcu(uint8_t* rgb, uint8_t index);
+extern void SetUserGpio1(GPIO_PinState value);
 
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
 void LcosSetFlip(void);
@@ -76,6 +79,7 @@ extern volatile _Bool g_FanMode;
 extern volatile _Bool g_UserDisplayOff;
 extern volatile _Bool Flag_MatMode;
 extern uint16_t g_RGBCurrent[3];
+extern uint8_t g_laser_mode;
 volatile _Bool Flag_PrintPort = 0;
 /* Private function prototypes -----------------------------------------------*/
 unsigned char CharToHex(unsigned char bHex)
@@ -726,6 +730,10 @@ void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t coun
 
 uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t current_b)
 {
+#ifdef CONFIG_MCU_CURRENT
+	if(g_laser_mode == TPL1401_MODE)
+#endif
+	{
 		uint8_t ret = SetRedCurrent(current_r);
 		if(ret != HAL_OK)
 		{				
@@ -745,6 +753,20 @@ uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t cu
 		}
 		
 		return HAL_OK;
+	} 
+#ifdef CONFIG_MCU_CURRENT	
+	else if(g_laser_mode == MCU_MODE) {
+		uint8_t ret = SetRGBCurrent_Mcu(current_r, current_g, current_b);
+		if(ret != HAL_OK)
+		{				
+			return ret;
+		}
+		
+		return HAL_OK;
+	} else {
+		return HAL_ERROR;
+	}
+#endif
 }
 
 void Uart_Save_Parameter(uint8_t* pData)
@@ -1151,7 +1173,7 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			{				
 				Uart_Send_Response(CMD_ERROR, NULL, 0);
 				break;
-			}
+			} 
 			
 			Uart_Send_Response(head->command, NULL, 0);
 			break;			
@@ -1233,14 +1255,32 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 
 		case CMD_GET_CURRENTS:
 		{
-			buf[0] =  GetRGBCurrent(0);
-			buf[1] =  GetRGBCurrent(1);
-			buf[2] =  GetRGBCurrent(2);
-			Uart_Send_Response(head->command, buf, 3);
-			break;			
+#ifdef CONFIG_MCU_CURRENT
+			if(g_laser_mode == TPL1401_MODE)
+#endif
+			{
+				buf[0] =  GetRGBCurrent(0);
+				buf[1] =  GetRGBCurrent(1);
+				buf[2] =  GetRGBCurrent(2);
+				Uart_Send_Response(head->command, buf, 3);
+			} 
+#ifdef CONFIG_MCU_CURRENT
+			else if(g_laser_mode == MCU_MODE) {
+				GetRGBCurrent_Mcu(&buf[0], 0);
+				HAL_Delay(1);
+				GetRGBCurrent_Mcu(&buf[1], 2);
+				HAL_Delay(1);
+				GetRGBCurrent_Mcu(&buf[2], 1);
+				Uart_Send_Response(head->command, buf, 3);
+			} else {
+				Uart_Send_Response(CMD_ERROR, NULL, 0);
+			}
+#endif
+			break;
 		}
 		case CMD_GET_IWDG_FLAG:
 		{
+			//SetUserGpio1(GPIO_PIN_SET);
 			buf[0] = g_projector_para.iwdg_flag;		
 			Uart_Send_Response(head->command, buf, 1);
 			break;			

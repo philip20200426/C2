@@ -135,6 +135,7 @@ extern void LcosSetCebc(void);
 extern void LcosSetCeacc(void);
 extern void LcosInitDIZ(void);
 extern uint8_t getIwdgFlag(void);
+extern void Check_LaserDrv_Mode(void);
 #ifdef USE_LT9211_LVDS2MIPI
 extern void	LT9211_Init(void);
 extern void LT9211_Pattern_Init(void);
@@ -162,6 +163,11 @@ void FanInit(void)
 void SetRGB_Enable(GPIO_PinState value)
 {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, value); //LD_EN enable LD DC-DC EN
+}
+
+void SetUserGpio1(GPIO_PinState value)
+{
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, value);	
 }
 
 void 	display_on(uint16_t on)
@@ -248,6 +254,9 @@ int main(void)
 	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	/******************************************************************/
+#ifdef CONFIG_MCU_CURRENT
+	Check_LaserDrv_Mode();
+#endif
   SetRGBCurrent();
   LcosInitSequence();
   LcosSetPatternSize();
@@ -825,6 +834,7 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 	return (1839 - vol)/11;
 }
 /*-------------------------------------------------------------------------------------------*/	
+#define MAX_LD_TEMP  55
 //new fan parameter
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
@@ -834,15 +844,15 @@ const uint8_t LD_CTL_TABLE12[][2] =
 	{44, FAN_SPEED_DEFAULT_L},
 	{45, FAN_SPEED_DEFAULT_L},
 	{46, FAN_SPEED_DEFAULT_L},
-	{47, FAN_SPEED_DEFAULT_L},
-	{48, FAN_SPEED_DEFAULT_L},
-	{49, FAN_SPEED_DEFAULT_L},
-	{50, FAN_SPEED_DEFAULT_L},
-	{51, FAN_SPEED_DEFAULT_L},
-	{52, FAN_SPEED_DEFAULT_L},
-	{53, 30},
-	{54, 35},
-	{55, 70}
+	{47, 35},
+	{48, 35},
+	{49, 35},
+	{50, 35},
+	{51, 45},
+	{52, 45},
+	{53, 45},
+	{54, 45},
+	{MAX_LD_TEMP, 45}
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
@@ -853,15 +863,15 @@ const uint8_t LD_CTL_TABLE34[][2] =
 	{44, FAN_SPEED_DEFAULT_R},
 	{45, FAN_SPEED_DEFAULT_R},
 	{46, FAN_SPEED_DEFAULT_R},
-	{47, FAN_SPEED_DEFAULT_R},
-	{48, FAN_SPEED_DEFAULT_R},
-	{49, FAN_SPEED_DEFAULT_R},
-	{50, FAN_SPEED_DEFAULT_R},
-	{51, FAN_SPEED_DEFAULT_R},
-	{52, FAN_SPEED_DEFAULT_R},
-	{53, 45},
-	{54, 50},
-	{55, 85}
+	{47, 50},
+	{48, 50},
+	{49, 50},
+	{50, 50},
+	{51, 60},
+	{52, 60},
+	{53, 60},
+	{54, 60},
+	{MAX_LD_TEMP, 60}
 };
 
 uint8_t get_ld_fan12pwm(uint8_t temp)
@@ -870,13 +880,16 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	static uint8_t s_pwm = 0, s_temp = 0;
 	
 	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
-	
+#if 0	
 	if(s_temp > 53){
 		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
 		{
 			return s_pwm;
 		}
-	} else {
+	}
+	else 
+#endif
+	{
 		if(temp == s_temp - 1 || temp == s_temp - 2)
 		{
 			return s_pwm;
@@ -893,7 +906,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 		}
 	}
 	
-	s_temp = 55;
+	s_temp = MAX_LD_TEMP;
 	return FAN_SPEED_FULL;
 }
 
@@ -903,13 +916,16 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	static uint8_t s_pwm = 0, s_temp = 0;
 	
 	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
-
+#if 0
 	if(s_temp > 53){
 		if(temp == s_temp - 1 || temp == s_temp - 2 || temp == s_temp - 3)
 		{
 			return s_pwm;
 		}
-	} else {
+	} 
+	else 
+#endif		
+	{
 		if(temp == s_temp - 1 || temp == s_temp - 2)
 		{
 			return s_pwm;
@@ -926,23 +942,23 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 		}
 	}
 	
-	s_temp = 55;
+	s_temp = MAX_LD_TEMP;
 	return FAN_SPEED_FULL;
 }
 
 const uint8_t LCOS_CTL_TABLE[][2] =
 {/*-10~60    +45 to +55 */
-	{44, 0},
+	{44, FAN_SPEED_DEFAULT_O},
 	{45, FAN_SPEED_DEFAULT_O},
 	{46, FAN_SPEED_DEFAULT_O},
 	{47, FAN_SPEED_DEFAULT_O},
 	{48, FAN_SPEED_DEFAULT_O},
-	{49, 40},
-	{50, 40},
-	{51, 40},
-	{52, 40},
-	{53, 50},
-	{54, 50},
+	{49, FAN_SPEED_DEFAULT_O},
+	{50, FAN_SPEED_DEFAULT_O},
+	{51, FAN_SPEED_DEFAULT_O},
+	{52, FAN_SPEED_DEFAULT_O},
+	{53, 30},
+	{54, 40},
 	{55, 50},	
 	{56, 60},	
 	{57, 70},	
@@ -986,19 +1002,20 @@ void Fan_Auto_Control(void)
 			fan12pwm = get_ld_fan12pwm(ld_temp);
 			fan34pwm = get_ld_fan34pwm(ld_temp);
 			fan5pwm = get_lcos_fanpwm(lcos_temp);
-
+			
+#ifdef CONFIG_AUTO_DISPLAYOFF
 			if(g_UserDisplayOff && (fan5pwm == 0))
 			{//Low LCOS temperature
 				fan12pwm = 0;
 				fan34pwm = 0;
 			}
-			
+#endif			
 			SetFan12Speed(fan12pwm);
 			SetFan34Speed(fan34pwm);		
 			SetFan5Speed(fan5pwm);
 		}
 		
-		if(ld_temp > 55 || lcos_temp > 60)
+		if(ld_temp > MAX_LD_TEMP || lcos_temp > 60)
 		{  	
 			g_overtemp_cnt++;
 			if(g_overtemp_cnt > TEMP_OVER_CNT)
@@ -1006,13 +1023,18 @@ void Fan_Auto_Control(void)
 				if(Flag_Projector_On != 0)
 				{
 					Flag_Projector_On = 0;
+				#ifdef CONFIG_AUTO_DISPLAYOFF
 					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
 					SetFan12Speed(FAN_SPEED_FULL);
 					SetFan34Speed(FAN_SPEED_FULL);
 					SetFan5Speed(FAN_SPEED_FULL);	
+				#else
+					SetUserGpio1(GPIO_PIN_SET);
+				#endif
 				}	
 			}
 		}
+#ifdef CONFIG_AUTO_DISPLAYOFF
 		else 
 		{
 			g_overtemp_cnt = 0;
@@ -1025,6 +1047,7 @@ void Fan_Auto_Control(void)
 				}	
 			}
 		}
+#endif
 	}
 #endif	
 }
