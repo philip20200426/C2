@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	1
-#define VERSION2 	1  //vbyone 4
+#define VERSION2 	2  //vbyone 4
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
@@ -65,9 +65,6 @@
 #define PACKAGE_DATA_BASE 			6
 
 #define CONFIG_CEACC
-
-//#define CONFIG_MCU_CURRENT
-//#define CONFIG_AUTO_DISPLAYOFF
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
@@ -88,7 +85,7 @@ typedef enum
 	FAN_SPEED_FULL   		= 100,
 	FAN_SPEED_DEFAULT_L		= 30,
 	FAN_SPEED_DEFAULT_R		= 40,
-	FAN_SPEED_DEFAULT_O		= 0,
+	FAN_SPEED_DEFAULT_O		= 30,
 	FAN_PEED_STOP    		= 0
 
 }FAN_Speed;
@@ -143,13 +140,6 @@ typedef enum
 	CURRENT_USER,
 	CURRENT_MAX	
 }CURRENT_Type;
-
-typedef enum
-{
-	TPL1401_MODE = 0,
-  MCU_MODE = 1,
-	UNKNOWN_MODE
-}LASER_CURRENT_MODE;
 /* Private variables ---------------------------------------------------------*/
 
 
