@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	1
-#define VERSION2 	2  //vbyone 4
+#define VERSION2 	3  //vbyone 4
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
@@ -65,6 +65,8 @@
 #define PACKAGE_DATA_BASE 			6
 
 #define CONFIG_CEACC
+
+//#define CONFIG_MCU_CURRENT
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
@@ -140,6 +142,14 @@ typedef enum
 	CURRENT_USER,
 	CURRENT_MAX	
 }CURRENT_Type;
+
+typedef enum
+{
+	TPL1401_MODE = 0,
+  MCU_MODE = 1,
+	UNKNOWN_MODE
+}LASER_CURRENT_MODE;
+
 /* Private variables ---------------------------------------------------------*/
 
 

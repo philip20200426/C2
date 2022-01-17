@@ -104,7 +104,9 @@ volatile _Bool g_UserDisplayOff = 0;
 volatile _Bool Flag_MatMode = 0;
 volatile _Bool FlagIwdg = 1;
 uint16_t g_overtemp_cnt = 0;
-
+uint16_t g_temp52_cnt = 0;
+_Bool g_overtemp_flag = 1;
+_Bool g_temp52_flag = 1;
 
 void Fan_Auto_Control(void);
 void SysTaskDispatch(void);
@@ -141,6 +143,11 @@ extern void LT9211_Pattern_Init(void);
 extern int lt9211_get_lvds_clkstb(uint8_t* count);
 extern void LT9211_Video_Reset(void);
 extern uint8_t get_LT9211_Mode(void);
+#endif
+#ifdef CONFIG_MCU_CURRENT
+extern void Check_LaserDrv_Mode(void);
+extern void SetRGBCurrentMcu(void);
+extern uint8_t g_laser_mode;
 #endif
 /* USER CODE END PV */
 
@@ -248,6 +255,12 @@ int main(void)
 	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	/******************************************************************/
+#ifdef CONFIG_MCU_CURRENT
+	Check_LaserDrv_Mode();
+	if(g_laser_mode == MCU_MODE)
+		SetRGBCurrentMcu();
+	else
+#endif
   SetRGBCurrent();
   LcosInitSequence();
   LcosSetPatternSize();
@@ -553,7 +566,7 @@ void SysTask256ms(void)
 
 void SysTask512ms(void)
 {
-#ifdef USE_LT9211_LVDS2MIPI
+#ifndef USE_LT9211_LVDS2MIPI
 	uint8_t count = 30;
 	
 	if(!get_LT9211_Mode())
@@ -829,39 +842,39 @@ uint16_t GetLcos_RT_Temp(uint16_t adc_val)
 const uint8_t LD_CTL_TABLE12[][2] =
 {/* 0~55   45*/	
 	{41, FAN_SPEED_DEFAULT_L},
-	{42, FAN_SPEED_DEFAULT_L},
-	{43, FAN_SPEED_DEFAULT_L},
-	{44, FAN_SPEED_DEFAULT_L},
-	{45, FAN_SPEED_DEFAULT_L},
-	{46, FAN_SPEED_DEFAULT_L},
-	{47, 35},
-	{48, 35},
-	{49, 35},
-	{50, 35},
-	{51, 45},
-	{52, 45},
-	{53, 45},
-	{54, 45},
-	{55, 45}
+	{42, 40},
+	{43, 40},
+	{44, 40},
+	{45, 40},
+	{46, 40},
+	{47, 40},
+	{48, 40},
+	{49, 40},
+	{50, 40},
+	{51, 40},
+	{52, 40},
+	{53, 40},
+	{54, 40},
+	{55, 40}
 };
 
 const uint8_t LD_CTL_TABLE34[][2] =
 {/* 0~55   45*/	
 	{41, FAN_SPEED_DEFAULT_R},
-	{42, FAN_SPEED_DEFAULT_R},
-	{43, FAN_SPEED_DEFAULT_R},
-	{44, FAN_SPEED_DEFAULT_R},
-	{45, FAN_SPEED_DEFAULT_R},
-	{46, FAN_SPEED_DEFAULT_R},
-	{47, 50},
-	{48, 50},
-	{49, 50},
-	{50, 50},
-	{51, 60},
-	{52, 60},
-	{53, 60},
-	{54, 60},
-	{55, 60}
+	{42, 40},
+	{43, 40},
+	{44, 40},
+	{45, 40},
+	{46, 40},
+	{47, 40},
+	{48, 40},
+	{49, 40},
+	{50, 40},
+	{51, 40},
+	{52, 40},
+	{53, 40},
+	{54, 40},
+	{55, 40}
 };
 
 uint8_t get_ld_fan12pwm(uint8_t temp)
@@ -869,7 +882,7 @@ uint8_t get_ld_fan12pwm(uint8_t temp)
 	uint8_t i;
 	static uint8_t s_pwm = 0, s_temp = 0;
 	
-	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][0];
+	if(temp < LD_CTL_TABLE12[0][0]) return LD_CTL_TABLE12[0][1];
 	
 	if(temp == s_temp - 1 || temp == s_temp - 2)
 	{
@@ -895,7 +908,7 @@ uint8_t get_ld_fan34pwm(uint8_t temp)
 	uint8_t i;
 	static uint8_t s_pwm = 0, s_temp = 0;
 	
-	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][0];
+	if(temp < LD_CTL_TABLE34[0][0]) return LD_CTL_TABLE34[0][1];
 
 	if(temp == s_temp - 1 || temp == s_temp - 2)
 	{
@@ -925,10 +938,10 @@ const uint8_t LCOS_CTL_TABLE[][2] =
 	{48, FAN_SPEED_DEFAULT_O},
 	{49, FAN_SPEED_DEFAULT_O},
 	{50, FAN_SPEED_DEFAULT_O},
-	{51, FAN_SPEED_DEFAULT_O},
-	{52, FAN_SPEED_DEFAULT_O},
-	{53, FAN_SPEED_DEFAULT_O},
-	{54, FAN_SPEED_DEFAULT_O},
+	{51, 35},
+	{52, 35},
+	{53, 40},
+	{54, 40},
 	{55, 50},	
 	{56, 60},	
 	{57, 70},	
@@ -941,7 +954,7 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 {
 	uint8_t i;
 	
-	if(temp < LCOS_CTL_TABLE[0][0]) return LCOS_CTL_TABLE[0][0];
+	if(temp < LCOS_CTL_TABLE[0][0]) return LCOS_CTL_TABLE[0][1];
 		
 	for (i = 0; i < sizeof(LCOS_CTL_TABLE)/sizeof(uint8_t)/2; i++)
 	{		
@@ -950,7 +963,8 @@ uint8_t get_lcos_fanpwm(uint8_t temp)
 
 	return FAN_SPEED_FULL;
 }
-#define TEMP_OVER_CNT   5   //2min
+#define TEMP_OVER_CNT   	3   //1min
+#define TEMP_CLOSE_CNT   	9   //3min
 void Fan_Auto_Control(void)
 {
 	uint16_t ld_adc = 0, lcos_adc = 0;
@@ -979,37 +993,57 @@ void Fan_Auto_Control(void)
 				fan34pwm = 0;
 				fan5pwm = 0;
 			}
-			
+			//printf("fan12pwm:%d fan34pwm:%d  fan5pwm:%d  \r\n",fan12pwm, fan34pwm, fan5pwm);
 			SetFan12Speed(fan12pwm);
 			SetFan34Speed(fan34pwm);		
 			SetFan5Speed(fan5pwm);
 		}
 		
-		if(ld_temp > 54 || lcos_temp > 60)
+		if(ld_temp > 55 || lcos_temp > 60)
 		{  	
 			g_overtemp_cnt++;
 			if(g_overtemp_cnt > TEMP_OVER_CNT)
 			{
+				if(g_overtemp_flag != 0)
+				{
+					g_overtemp_flag = 0;
+					HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
+					HAL_Delay(120);
+					HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);
+				}	
+			}
+			
+			if(g_overtemp_cnt > TEMP_CLOSE_CNT)
+			{
 				if(Flag_Projector_On != 0)
 				{
 					Flag_Projector_On = 0;
-				#if 0
 					SetRGB_Enable((GPIO_PinState)Flag_Projector_On);
-					SetFan12Speed(FAN_SPEED_FULL);
-					SetFan34Speed(FAN_SPEED_FULL);
-					SetFan5Speed(FAN_SPEED_FULL);	
-				#else
-					HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
-					HAL_Delay(120);
-					HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);	
-				#endif
-				}	
+				}
 			}
 		}
-#if 0
+		else if(ld_temp > 52)
+		{  	
+			g_temp52_cnt++;
+			if(g_temp52_cnt > TEMP_OVER_CNT)
+			{
+				if(g_temp52_flag != 0)
+				{
+					g_temp52_flag = 0;
+					HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
+					HAL_Delay(120);
+					HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);
+				}	
+			}
+		}		
 		else 
 		{
 			g_overtemp_cnt = 0;
+			g_overtemp_flag = 1;
+			g_temp52_cnt = 0;
+			g_temp52_flag = 1;
+
+			
 			if(ld_temp < 45 && lcos_temp < 48)
 			{
 				if(Flag_Projector_On != 1)
@@ -1019,7 +1053,7 @@ void Fan_Auto_Control(void)
 				}	
 			}
 		}
-#endif
+		
 	}
 #endif	
 }
