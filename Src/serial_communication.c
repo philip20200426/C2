@@ -1181,9 +1181,9 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 			g_FanMode = pRx[PACKAGE_DATA_BASE + 3];	
 			if(g_FanMode != 0)
 			{
-				//SetFan12Speed(pRx[PACKAGE_DATA_BASE]);
-				//SetFan34Speed(pRx[PACKAGE_DATA_BASE + 1]);
-				//SetFan5Speed(pRx[PACKAGE_DATA_BASE + 2]);	
+				SetFan12Speed(pRx[PACKAGE_DATA_BASE]);
+				SetFan34Speed(pRx[PACKAGE_DATA_BASE + 1]);
+				SetFan5Speed(pRx[PACKAGE_DATA_BASE + 2]);
 			}
 			Uart_Send_Response(head->command, NULL, 0);
 			
