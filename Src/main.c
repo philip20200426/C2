@@ -137,17 +137,8 @@ extern void LcosSetCebc(void);
 extern void LcosSetCeacc(void);
 extern void LcosInitDIZ(void);
 extern uint8_t getIwdgFlag(void);
-#ifdef USE_LT9211_LVDS2MIPI
-extern void	LT9211_Init(void);
-extern void LT9211_Pattern_Init(void);
-extern int lt9211_get_lvds_clkstb(uint8_t* count);
-extern void LT9211_Video_Reset(void);
-extern uint8_t get_LT9211_Mode(void);
-#endif
-#ifdef CONFIG_MCU_CURRENT
-extern void Check_LaserDrv_Mode(void);
-extern void SetRGBCurrentMcu(void);
-extern uint8_t g_laser_mode;
+#ifdef CONFIG_AD5316R_CURRENT
+extern void SetRGBCurrentAD5316R(void);
 #endif
 /* USER CODE END PV */
 
@@ -255,13 +246,11 @@ int main(void)
 	ThreePhaseMotorDriver_init();	
   HAL_TIM_Base_Start_IT(&htim6);	
 	/******************************************************************/
-#ifdef CONFIG_MCU_CURRENT
-	Check_LaserDrv_Mode();
-	if(g_laser_mode == MCU_MODE)
-		SetRGBCurrentMcu();
-	else
+#ifdef CONFIG_AD5316R_CURRENT
+		SetRGBCurrentAD5316R();
+#else
+		SetRGBCurrent();
 #endif
-  SetRGBCurrent();
   LcosInitSequence();
   LcosSetPatternSize();
   LcosSetIntPattern();
@@ -287,12 +276,7 @@ int main(void)
 	LcosSetCeacc();
 #endif
 	/******************************************************************/
-#ifdef USE_LT9211_LVDS2MIPI
-	LT9211_Init();
-	//LT9211_Pattern_Init();
-#else
-	LT89121_Reset();
-#endif
+	HAL_GPIO_WritePin(GPIOD,GPIO_PIN_1,GPIO_PIN_SET);//lt6911 reset pin should be set high.
 	SetRGB_Enable(GPIO_PIN_SET); //LD_EN
 	/******************************************************************/
 	SetBootPinMode();
@@ -307,6 +291,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	printf("LED : Q8WP, Version: %d.%d.%d \r\n", VERSION0, VERSION1, VERSION2);
+	printf("BUILD_VERSION_DATE %s_%s\n", __DATE__, __TIME__);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -549,16 +535,12 @@ void SysTask8ms(void)
 
 void SysTask16ms(void)
 {
-
+	Fan_Auto_Control();
 }
 
 void SysTask256ms(void)
 {
-#ifdef USE_LT9211_LVDS2MIPI
-	if(Flag_Lvds_Clk_Stb == 0)
-#else
 	if(Flag_Projector_On == 0)
-#endif
 	{
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
@@ -566,23 +548,7 @@ void SysTask256ms(void)
 
 void SysTask512ms(void)
 {
-#ifndef USE_LT9211_LVDS2MIPI
-	uint8_t count = 30;
-	
-	if(!get_LT9211_Mode())
-	{
-		if(!lt9211_get_lvds_clkstb(&count))
-		{
-			if(Flag_Lvds_Clk_Stb)
-			{
-				printf("\r\n lvds clk not stable \r\n");
-				Flag_Lvds_Clk_Stb = 0;
-			}
-			
-			LT9211_Video_Reset();
-		}
-	}
-#endif
+
 }
 
 #ifdef CONFIG_MAT
@@ -593,11 +559,7 @@ extern uint8_t LimitPosition;
 
 void SysTask1s(void)
 {
-#ifdef USE_LT9211_LVDS2MIPI
-	if(Flag_Lvds_Clk_Stb == 1)
-#else
-	if(Flag_Projector_On == 1) 
-#endif
+	if(Flag_Projector_On == 1)
 	{
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_9);
 	}
@@ -607,9 +569,6 @@ void SysTask1s(void)
 
 	if(Flag_MatMode != 0 && flag_enter)
 	{
-#ifdef USE_LT9211_LVDS2MIPI
-		LT9211_Pattern_Init();
-#endif
 		flag_enter = 0;
 	}
 	
@@ -810,7 +769,7 @@ uint16_t GetLd_RT_Temp(uint16_t adc_val)
 	ohm = (4096000/adc_val - 1000);
 	if(ohm >  LD_RT_TABLE[0]) 
 	{
-		printf("LD OHM:%d \r\n",ohm);	
+		//printf("LD OHM:%d \r\n",ohm);	
 		if (ohm > 18744) return 50; //no ld RT register
 		return 0;
 	}
@@ -938,15 +897,15 @@ const uint8_t LCOS_CTL_TABLE[][2] =
 	{48, FAN_SPEED_DEFAULT_O},
 	{49, FAN_SPEED_DEFAULT_O},
 	{50, FAN_SPEED_DEFAULT_O},
-	{51, 35},
-	{52, 35},
-	{53, 40},
-	{54, 40},
-	{55, 50},	
-	{56, 60},	
-	{57, 70},	
-	{58, 80},	
-	{59, 90},	
+	{51, 40},
+	{52, 50},
+	{53, 50},
+	{54, 60},
+	{55, 70},	
+	{56, 80},	
+	{57, 90},	
+	{58, 100},	
+	{59, 100},	
 	{60, 100}
 };
 
@@ -976,7 +935,7 @@ void Fan_Auto_Control(void)
 	lcos_adc = adc_val[2];
 	ld_temp = GetLd_RT_Temp(ld_adc);
 	lcos_temp = GetLcos_RT_Temp(lcos_adc);
-	//printf("LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n",ld_temp, lcos_temp, ld_adc, lcos_adc);
+	//printf("g_FanMode %d, LD_TEMP:%d LCOS_TEMP:%d  LD ADC:%d  LCOS ADC:%d \r\n", g_FanMode, ld_temp, lcos_temp, ld_adc, lcos_adc);
 	//GetFanSpeed();
 #if 1
 	if(!g_FanMode)

@@ -29,7 +29,7 @@
 #define UART_BUFFER_MAX_SIZE 			256
 #define VERSION0 	0
 #define VERSION1 	1
-#define VERSION2 	4  //vbyone 4
+#define VERSION2 	5 // Change to LED : Q8WP
 
 /* -----------------------------------------------------------*/
 #define COMM_FLAG								0xFEFE
@@ -66,7 +66,7 @@
 
 #define CONFIG_CEACC
 
-//#define CONFIG_MCU_CURRENT
+#define CONFIG_AD5316R_CURRENT
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
@@ -86,7 +86,7 @@ typedef enum
 {
 	FAN_SPEED_FULL   		= 100,
 	FAN_SPEED_DEFAULT_L		= 30,
-	FAN_SPEED_DEFAULT_R		= 40,
+	FAN_SPEED_DEFAULT_R		= 30,
 	FAN_SPEED_DEFAULT_O		= 30,
 	FAN_PEED_STOP    		= 0
 

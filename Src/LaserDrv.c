@@ -12,12 +12,14 @@
 
 uint16_t g_RGBCurrent[3];
 extern struct Projector_Color_Temp * g_pColorTemp;
+#define RETRY_CNT 5
 
+#ifndef CONFIG_AD5316R_CURRENT
+/***********************************************************************************************************************/
 #define TPL1401_RLED_I2C_ADDR 0x90
 #define TPL1401_GLED_I2C_ADDR 0x92
 #define TPL1401_BLED_I2C_ADDR 0x94
 
-#define RETRY_CNT 5
 uint8_t TPL1401_WriteI2C_Byte(uint8_t DevAddr, uint8_t RegAddr, uint16_t data)
 {
 		uint8_t ret, retry_cnt = RETRY_CNT;
@@ -69,9 +71,9 @@ uint16_t TPL1401_ReadI2C_Byte(uint8_t DevAddr, uint8_t RegAddr)
 #define MIN_GREEN_VAL   	10
 #define MIN_BLUE_VAL   		10
 
-#define DEFAULT_R_VAL   	80
-#define DEFAULT_G_VAL   	80
-#define DEFAULT_B_VAL   	65
+#define DEFAULT_R_VAL   	92
+#define DEFAULT_G_VAL   	75
+#define DEFAULT_B_VAL   	73
 
 uint8_t GetRGBCurrent(uint8_t rgb)
 {
@@ -261,137 +263,205 @@ void SetRGBCurrent(void)
 #endif	
 	
 }
+#else
+/**************************************************************AD5316R**************************************************/
+#define AD5316R_I2C_ADDR 								0x1C 	//A1-1  A0-0
+#define AD5316R_CMD_NONE  							0
+#define AD5316R_CMD_WRITE_REG_LDAC  		1
+#define AD5316R_CMD_UPDATE_LDAC  				2
+#define AD5316R_CMD_WRITE_UPDATE_LDAC  	3
+#define AD5316R_CMD_POWER						  	4
+#define AD5316R_CMD_MASK_LADC						5
+#define AD5316R_CMD_SW_REST							6
+#define AD5316R_CMD_VOL_REF							7
 
-/***********************************************************************************************************************/
-#ifdef CONFIG_MCU_CURRENT
-#define MCU_I2C_ADDR 0x96
+#define AD5316R_ADC_ADDR_OUTA						1
+#define AD5316R_ADC_ADDR_OUTB						2
+#define AD5316R_ADC_ADDR_OUTC						4
 
-#define MAX_RED_VAL_MCU   		92 
-#define MAX_GREEN_VAL_MCU   	88
-#define MAX_BLUE_VAL_MCU   		92
 
-#define MIN_RED_VAL_MCU   		1  
-#define MIN_GREEN_VAL_MCU   	1
-#define MIN_BLUE_VAL_MCU   		1
+#define MAX_RED_VAL_AD5316R   		203
+#define MAX_GREEN_VAL_AD5316R   	203
+#define MAX_BLUE_VAL_AD5316R   		245
 
-#define DEFAULT_R_VAL_MCU   	80
-#define DEFAULT_G_VAL_MCU   	80
-#define DEFAULT_B_VAL_MCU   	75
+#define MIN_RED_VAL_AD5316R   		10
+#define MIN_GREEN_VAL_AD5316R   	10
+#define MIN_BLUE_VAL_AD5316R   		10
 
-uint8_t g_laser_mode = UNKNOWN_MODE;
+#define DEFAULT_R_VAL_AD5316R   	60
+#define DEFAULT_G_VAL_AD5316R   	60
+#define DEFAULT_B_VAL_AD5316R   	60
 
-uint8_t ConvertTo100(uint8_t val)
+uint8_t AD5316R_WriteI2C_Byte(uint8_t RegAddr, uint16_t data)
 {
-	return (MCU_I2C_ADDR * val) / 100;
-}
+	uint8_t ret, retry_cnt = RETRY_CNT;
+	uint8_t d[2];
 
-uint8_t Mcu_WriteI2C_rgb(uint8_t DevAddr, uint8_t RegAddr, uint8_t r,  uint8_t g, uint8_t b)
-{
-		uint8_t ret, retry_cnt = RETRY_CNT;
-		uint8_t d[3];
+	d[0] = ((data << 6) & 0xff00) >> 8 ;
+	d[1] = (data << 6 ) & 0xff;
 
-		d[0] = r;
-		d[1] = b;
-		d[2] = g;
-	
-		while(retry_cnt --) {
-			ret = HAL_I2C_Mem_Write(&hi2c2, (uint16_t)DevAddr, (uint16_t)RegAddr, I2C_MEMADD_SIZE_8BIT, (uint8_t *)&d, 3, 300);
-			if(ret == HAL_OK) break;
-		}
-		if(ret != HAL_OK)
-		{		
-			printf("Mcu_WriteI2C_rgb rgb:%d %d %d faild. ret=%d\r\n", r, g, b, ret);			
-		}
-		
-		return ret;
-}
-
-
-uint8_t GetRGBCurrent_Mcu(uint8_t* rgb, uint8_t index)
-{
-	uint8_t ret,retry_cnt=RETRY_CNT;
-
-	while(retry_cnt --) {	
-		ret = HAL_I2C_Mem_Read(&hi2c2, MCU_I2C_ADDR, index, I2C_MEMADD_SIZE_8BIT, rgb, 1, 300);
+	while(retry_cnt --) {
+		ret = HAL_I2C_Mem_Write(&hi2c2, (uint16_t)AD5316R_I2C_ADDR, (uint16_t)RegAddr, I2C_MEMADD_SIZE_8BIT, (uint8_t *)&d, 2, 300);
 		if(ret == HAL_OK) break;
 	}
 	if(ret != HAL_OK) 
 	{
-		printf("GetRGBCurrent_Mcu faild. ret=%d\r\n", ret);
-	}
-
-	if(index == 0 && (*rgb == MIN_RED_VAL_MCU || *rgb == MAX_RED_VAL_MCU))
-		*rgb = g_RGBCurrent[0];
-
-	if(index == 2 && (*rgb == MIN_GREEN_VAL_MCU || *rgb == MAX_GREEN_VAL_MCU))
-		*rgb = g_RGBCurrent[1];
-
-	if(index == 1 && (*rgb == MIN_BLUE_VAL_MCU || *rgb == MAX_BLUE_VAL_MCU))
-		*rgb = g_RGBCurrent[2];
+		printf("AD5316R_WriteI2C_Byte 0x%x->0x%x faild. ret=%d\r\n", RegAddr, data, ret);
+	}	else {
+		printf("AD5316R_WriteI2C_Byte 0x%x->0x%x OK. \r\n", RegAddr, data);
+	}		
 	
 	return ret;
 }
 
-uint8_t SetRGBCurrent_Mcu(uint8_t r, uint8_t g, uint8_t b)
+uint16_t AD5316R_ReadI2C_Byte(uint8_t RegAddr)
 {
-	g_RGBCurrent[0] = r;
-	g_RGBCurrent[1] = g;
-	g_RGBCurrent[2] = b;
+	uint8_t ret,retry_cnt=RETRY_CNT;
+	uint8_t d[2] = {0};
+	uint16_t data;
 	
-  if(r > MAX_RED_VAL_MCU)
-			r = MAX_RED_VAL_MCU;
-  if(r < MIN_RED_VAL_MCU)
-			r = MIN_RED_VAL_MCU;
-  if(g > MAX_GREEN_VAL_MCU)
-			g = MAX_GREEN_VAL_MCU;
-  if(g < MIN_GREEN_VAL_MCU)
-			g = MIN_GREEN_VAL_MCU;
-  if(b > MAX_BLUE_VAL_MCU)
-			b = MAX_BLUE_VAL_MCU;
-  if(b < MIN_BLUE_VAL_MCU)
-			b = MIN_BLUE_VAL_MCU;
+	while(retry_cnt --) {	
+		ret = HAL_I2C_Mem_Read(&hi2c2, (uint16_t)AD5316R_I2C_ADDR, (uint16_t)RegAddr, I2C_MEMADD_SIZE_8BIT, (uint8_t *)&d, 2, 300);
+		if(ret == HAL_OK) break;
+	}
+	if(ret != HAL_OK) 
+	{
+		printf("AD5316R_ReadI2C_Byte 0x%x faild. ret=%d\r\n", RegAddr, ret);
+		return 0xffff;
+	}
 	
-	return Mcu_WriteI2C_rgb(MCU_I2C_ADDR, 0, r, g , b);
-}
-/***********************************************************************************************************************/
-void Check_LaserDrv_Mode(void)
-{
-		uint8_t ret;
-		uint8_t val;
+	data = (d[0] << 8) + d[1];
 	
-	  ret = (TPL1401_ReadI2C_Byte(TPL1401_RLED_I2C_ADDR + (0 << 1), 0x21) >> 4);//read red led
-		if(ret != 0xff)
-		{
-			g_laser_mode = TPL1401_MODE;
-			printf("Check_LaserDrv_Mode: %d \r\n", g_laser_mode);
-			return;
-		} else if(GetRGBCurrent_Mcu(&val, 0) == HAL_OK){
-			g_laser_mode = MCU_MODE;
-			printf("Check_LaserDrv_Mode: red-> %d \r\n", val);
-			#if 0
-			GetRGBCurrent_Mcu(&val, 1);
-			HAL_Delay(1);
-			printf("Check_LaserDrv_Mode: green-> %d \r\n", val);
-			GetRGBCurrent_Mcu(&val, 2);
-			HAL_Delay(1);
-			printf("Check_LaserDrv_Mode: blue-> %d \r\n", val);	
-			#endif
-			printf("Check_LaserDrv_Mode: %d \r\n", g_laser_mode);
-		}
-		HAL_Delay(1);
+	return (data >>6);
 }
 
-void SetRGBCurrentMcu(void)
+void AD5316R_PowerUpDac(void)  //powerup outa outb outc
+{
+	uint8_t command_byte, data;
+	
+	command_byte = (AD5316R_CMD_POWER << 4);
+	data = 0xc0;
+	AD5316R_WriteI2C_Byte(command_byte, data);	
+}
+
+void AD5316R_EnableVolRef(void)
+{
+	uint8_t command_byte, data;
+	
+	command_byte = (AD5316R_CMD_VOL_REF << 4);
+	data = 0;
+	AD5316R_WriteI2C_Byte(command_byte, data);	
+}
+
+void AD5316R_DisableVolRef(void)
+{
+	uint8_t command_byte, data;
+	
+	command_byte = (AD5316R_CMD_VOL_REF << 4);
+	data = 1;
+	AD5316R_WriteI2C_Byte(command_byte, data);	
+}
+
+uint8_t AD5316R_SetRedPwm(uint32_t data)
+{
+	uint8_t command_byte;
+	
+	data = (data * MAX_RED_VAL_AD5316R)/100;
+	command_byte = (AD5316R_CMD_WRITE_UPDATE_LDAC << 4) + AD5316R_ADC_ADDR_OUTA;
+	return AD5316R_WriteI2C_Byte(command_byte, data);
+}
+
+uint8_t AD5316R_SetGreenPwm(uint32_t data)
+{
+	uint8_t command_byte;
+	
+	data = (data * MAX_GREEN_VAL_AD5316R)/100;	
+	command_byte = (AD5316R_CMD_WRITE_UPDATE_LDAC << 4) + AD5316R_ADC_ADDR_OUTB;
+	return AD5316R_WriteI2C_Byte(command_byte, data);	
+}
+
+uint8_t AD5316R_SetBluePwm(uint32_t data)
+{
+	uint8_t command_byte;
+	
+	data = (data * MAX_BLUE_VAL_AD5316R)/100;
+	command_byte = (AD5316R_CMD_WRITE_UPDATE_LDAC << 4) + AD5316R_ADC_ADDR_OUTC;
+	return AD5316R_WriteI2C_Byte(command_byte, data);	
+}
+
+uint8_t SetRedCurrent_AD5316R(uint16_t RedCurrent)
+{
+	g_RGBCurrent[0] = RedCurrent;
+	
+	if(RedCurrent > MAX_RED_VAL_AD5316R)
+  {
+			RedCurrent  = MAX_RED_VAL_AD5316R;
+  }	
+	
+	if(RedCurrent < MIN_RED_VAL_AD5316R)
+  {
+			RedCurrent  = MIN_RED_VAL_AD5316R;
+  }
+	
+	return AD5316R_SetRedPwm(RedCurrent);
+}
+
+
+uint8_t GetRGBCurrent_AD5316R(uint8_t rgb)
+{
+#if 1
+	return (uint8_t)g_RGBCurrent[rgb];
+#else
+	if(rgb == 0)
+		return AD5316R_ReadI2C_Byte((AD5316R_CMD_WRITE_UPDATE_LDAC << 4) + AD5316R_ADC_ADDR_OUTA);
+	else if(rgb == 1)
+		return AD5316R_ReadI2C_Byte((AD5316R_CMD_WRITE_UPDATE_LDAC << 4) + AD5316R_ADC_ADDR_OUTB);
+	else if(rgb == 2)
+		return AD5316R_ReadI2C_Byte((AD5316R_CMD_WRITE_UPDATE_LDAC << 4) + AD5316R_ADC_ADDR_OUTC);
+	
+	return 0xff;
+#endif
+}
+
+uint8_t SetGreenCurrent_AD5316R(uint16_t GreenCurrent)
+{
+	g_RGBCurrent[1] = GreenCurrent;
+	
+  if(GreenCurrent > MAX_GREEN_VAL_AD5316R)
+  {
+			GreenCurrent  = MAX_GREEN_VAL_AD5316R;
+  }
+	
+  if(GreenCurrent < MIN_GREEN_VAL_AD5316R)
+  {
+			GreenCurrent  = MIN_GREEN_VAL_AD5316R;
+  }
+
+	return AD5316R_SetGreenPwm(GreenCurrent);
+}
+
+uint8_t SetBlueCurrent_AD5316R(uint16_t BlueCurrent) 
+{
+	g_RGBCurrent[2] = BlueCurrent;
+	
+  if(BlueCurrent > MAX_BLUE_VAL_AD5316R)
+  {
+			BlueCurrent = MAX_BLUE_VAL_AD5316R;
+  }
+	
+  if(BlueCurrent < MIN_BLUE_VAL_AD5316R)
+  {
+			BlueCurrent = MIN_BLUE_VAL_AD5316R;
+  }
+	
+	return AD5316R_SetBluePwm(BlueCurrent);
+}
+
+void SetRGBCurrentAD5316R(void)
 {
 	uint16_t RedCurrent;
 	uint16_t GreenCurrent;	
 	uint16_t BlueCurrent;	
-	uint8_t retry_cnt = WAIT_12V_TIMEOUT;
-	//MB_GPIO0
-	while(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_15) != GPIO_PIN_SET && retry_cnt--)
-	{
-		HAL_Delay(100);
-	}
 
 	if(g_pColorTemp->current.valid == PARAMETER_VALID)
 	{
@@ -401,18 +471,17 @@ void SetRGBCurrentMcu(void)
 	}
 	else
 	{
-		RedCurrent 	= DEFAULT_R_VAL_MCU;
-		GreenCurrent = DEFAULT_G_VAL_MCU;
-		BlueCurrent 	= DEFAULT_B_VAL_MCU;
+		RedCurrent 	= DEFAULT_R_VAL_AD5316R;
+		GreenCurrent = DEFAULT_G_VAL_AD5316R;
+		BlueCurrent 	= DEFAULT_B_VAL_AD5316R;
 	}
 
-	if(retry_cnt == 255)
-	{
-		printf("set rgb:%d %d %d  retry_cnt timeout. \r\n",RedCurrent, GreenCurrent, BlueCurrent);
-	} else {
-		printf("set rgb:%d %d %d  retry_cnt:%d \r\n",RedCurrent, GreenCurrent, BlueCurrent, WAIT_12V_TIMEOUT - retry_cnt);
-	}
-
-	SetRGBCurrent_Mcu(RedCurrent, GreenCurrent, BlueCurrent);
+	SetRedCurrent_AD5316R(RedCurrent);
+  SetGreenCurrent_AD5316R(GreenCurrent);
+  SetBlueCurrent_AD5316R(BlueCurrent);
+	printf("SetRGBCurrentAD5316R: valid %d : %d %d %d \r\n", g_pColorTemp->current.valid, RedCurrent, GreenCurrent, BlueCurrent);
+	
 }
 #endif
+ 
+

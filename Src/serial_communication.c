@@ -25,16 +25,13 @@ extern uint16_t GetLd_RT_Temp(uint16_t adc_val);
 extern uint16_t GetLcos_RT_Temp(uint16_t adc_val);
 extern uint8_t ReadReg_10983(uint8_t RegAddr);
 extern uint8_t GetRGBCurrent(uint8_t rgb);
-#ifdef USE_LT9211_LVDS2MIPI
-extern void	LT9211_Init(void);
-extern void LT9211_Pattern_Init(void);
-#endif
 extern void display_on(uint16_t on);
 
-#ifdef CONFIG_MCU_CURRENT
-extern uint8_t SetRGBCurrent_Mcu(uint8_t r, uint8_t g, uint8_t b);
-extern uint8_t GetRGBCurrent_Mcu(uint8_t* rgb, uint8_t index);
-extern uint8_t g_laser_mode;
+#ifdef CONFIG_AD5316R_CURRENT
+extern uint8_t SetRedCurrent_AD5316R(uint16_t RedCurrent);
+extern uint8_t SetGreenCurrent_AD5316R(uint16_t GreenCurrent);
+extern uint8_t SetBlueCurrent_AD5316R(uint16_t BlueCurrent);
+extern uint8_t GetRGBCurrent_AD5316R(uint8_t rgb);
 #endif
 
 void Uart_Send_Response(uint16_t command, uint8_t* data, uint8_t size );
@@ -732,9 +729,21 @@ void Uart_Cmd_ReadReg(uint16_t cmd, uint16_t reg, uint8_t* val_buf, uint8_t coun
 
 uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t current_b)
 {
-#ifdef CONFIG_MCU_CURRENT	
-	if(g_laser_mode == MCU_MODE) {
-		uint8_t ret = SetRGBCurrent_Mcu(current_r, current_g, current_b);
+#ifdef CONFIG_AD5316R_CURRENT 
+	{
+		uint8_t ret = SetRedCurrent_AD5316R(current_r);
+		if(ret != HAL_OK)
+		{				
+			return ret;
+		}
+		
+		ret = SetGreenCurrent_AD5316R(current_g);
+		if(ret != HAL_OK)
+		{				
+			return ret;
+		}
+		
+		ret = SetBlueCurrent_AD5316R(current_b);
 		if(ret != HAL_OK)
 		{				
 			return ret;
@@ -742,7 +751,7 @@ uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t cu
 		
 		return HAL_OK;
 	}
-#endif
+#else
 	{
 		uint8_t ret = SetRedCurrent(current_r);
 		if(ret != HAL_OK)
@@ -764,6 +773,7 @@ uint8_t Uart_Set_RGB_Current(uint16_t current_r, uint16_t current_g, uint16_t cu
 		
 		return HAL_OK;
 	}
+#endif
 }
 
 void Uart_Save_Parameter(uint8_t* pData)
@@ -874,7 +884,7 @@ void Uart_Save_Parameter(uint8_t* pData)
 				g_pColorTemp->current.r = g_RGBCurrent[0];
 				g_pColorTemp->current.g = g_RGBCurrent[1];
 				g_pColorTemp->current.b = g_RGBCurrent[2];
-
+				printf("philip test save current rgb: %d %d %d \r\n", g_pColorTemp->current.r, g_pColorTemp->current.g, g_pColorTemp->current.b);
 				Uart_Set_RGB_Current(g_pColorTemp->current.r, g_pColorTemp->current.g, g_pColorTemp->current.b);
 				SetUserParameterEx((void*)g_pColorTemp, sizeof(struct Projector_Color_Temp), FLASH_COLORTEMP_START_ADDR, FLASH_COLORTEMP_START_ADDR);
 				break;
@@ -1123,12 +1133,6 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 		}
 		case CMD_SET_LT9211_TEST:
 		{
-#ifdef USE_LT9211_LVDS2MIPI
-			if(pRx[PACKAGE_DATA_BASE] == 0)
-				LT9211_Init();
-			else
-				LT9211_Pattern_Init();
-#endif
 			Uart_Send_Response(head->command, NULL, 0);
 			break;
 		}
@@ -1252,22 +1256,21 @@ void ToolUartCmdHandler(uint8_t *pRx,uint8_t length)
 
 		case CMD_GET_CURRENTS:
 		{
-#ifdef CONFIG_MCU_CURRENT
-			if(g_laser_mode == MCU_MODE) {
-				GetRGBCurrent_Mcu(&buf[0], 0);
-				HAL_Delay(1);
-				GetRGBCurrent_Mcu(&buf[1], 2);
-				HAL_Delay(1);
-				GetRGBCurrent_Mcu(&buf[2], 1);
+#ifdef CONFIG_AD5316R_CURRENT 
+			{
+				buf[0] =  GetRGBCurrent_AD5316R(0);
+				buf[1] =  GetRGBCurrent_AD5316R(1);
+				buf[2] =  GetRGBCurrent_AD5316R(2);
 				Uart_Send_Response(head->command, buf, 3);
-			} else
-#endif
+			}			
+#else
 			{
 				buf[0] =  GetRGBCurrent(0);
 				buf[1] =  GetRGBCurrent(1);
 				buf[2] =  GetRGBCurrent(2);
 				Uart_Send_Response(head->command, buf, 3);
 			}
+#endif
 			break;			
 		}
 		case CMD_GET_IWDG_FLAG:
@@ -1738,7 +1741,7 @@ void LcosSetFlip(void)
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, (H_FLIP_Mode)(g_projector_para.flip.h));
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, (V_FLIP_Mode)(g_projector_para.flip.v));
 		} else {
-			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, 0x01); //default val
+			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0090, 0x00); //default val
 			I2cWriteCxd3554(CXD3554_I2C_ADDRESS, 0x0091, 0x01);		
 		}
 }

@@ -1,8 +1,8 @@
 .mxproject
 MDK-ARM/JLinkLog.txt
-MDK-ARM/A100/
+MDK-ARM/H10/
 MDK-ARM/startup_stm32g070xx.lst
 MDK-ARM/DebugConfig/
 MDK-ARM/RTE/
-MDK-ARM/A100.uvguix.*
+MDK-ARM/H10.uvguix.*
 
