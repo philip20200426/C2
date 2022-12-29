@@ -1784,8 +1784,8 @@ void LcosSetColorTempBlock(void)
 		I2cWriteCxd3554Burst(CXD3554_I2C_ADDRESS, CXD3554_MISC_BASEADDRESS, g_pColorTemp->reg_misc.val, MISC_REG_NUM);
 	}
 #ifdef CONFIG_GRGBBGRG	
-	g_pColorTemp->reg_led.valid = PARAMETER_INVALID;
-	g_pColorTemp->reg_frc.valid = PARAMETER_INVALID;
+	//g_pColorTemp->reg_led.valid = PARAMETER_INVALID;
+	//g_pColorTemp->reg_frc.valid = PARAMETER_INVALID;
 #endif	
 	if((g_pColorTemp->reg_led.valid) == PARAMETER_VALID)
 	{

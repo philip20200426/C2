@@ -280,9 +280,9 @@ void SetRGBCurrent(void)
 #define AD5316R_ADC_ADDR_OUTC						4
 
 
-#define MAX_RED_VAL_AD5316R   		203
-#define MAX_GREEN_VAL_AD5316R   	203
-#define MAX_BLUE_VAL_AD5316R   		245
+#define MAX_RED_VAL_AD5316R   		200
+#define MAX_GREEN_VAL_AD5316R   	250
+#define MAX_BLUE_VAL_AD5316R   		255
 
 #define MIN_RED_VAL_AD5316R   		10
 #define MIN_GREEN_VAL_AD5316R   	10

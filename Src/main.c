@@ -119,7 +119,7 @@ extern void LcosSetGain(void);
 extern void LcosSetFlip(void);
 extern void LcosInitWec(void);
 extern void LcosInitCSCO(void);
-extern void LcosInitLED(void);
+extern void f(void);
 extern void LcosInitSHP(void);
 extern void GetParameter(void);
 extern void GetColorTempParameter(void);
@@ -136,6 +136,7 @@ extern void LcosSetCe1d(void);
 extern void LcosSetCebc(void);
 extern void LcosSetCeacc(void);
 extern void LcosInitDIZ(void);
+extern void LcosInitLED();
 extern uint8_t getIwdgFlag(void);
 #ifdef CONFIG_AD5316R_CURRENT
 extern void SetRGBCurrentAD5316R(void);
